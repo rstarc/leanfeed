@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
 	"leanfeed/internal/store"
@@ -74,8 +75,44 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /opml", s.handleImportOPML)
 }
 
+// contentSecurityPolicy allows scripts and styles only from leanfeed
+// itself. Images and media in feed content load from their origin.
+const contentSecurityPolicy = "default-src 'none'; script-src 'self'; style-src 'self'; " +
+	"img-src 'self' http: https:; media-src http: https:; connect-src 'self'; " +
+	"form-action 'self'; base-uri 'none'; frame-ancestors 'none'"
+
+// ServeHTTP sets security headers on every response and rejects
+// cross-site requests that change state.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h := w.Header()
+	h.Set("Content-Security-Policy", contentSecurityPolicy)
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Referrer-Policy", "no-referrer")
+	h.Set("X-Frame-Options", "DENY")
+	if !safeMethod(r.Method) && !sameSiteHTMX(r) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
 	s.mux.ServeHTTP(w, r)
+}
+
+func safeMethod(m string) bool {
+	return m == http.MethodGet || m == http.MethodHead || m == http.MethodOptions
+}
+
+// sameSiteHTMX reports whether a request carries the HX-Request header and,
+// if it has an Origin, comes from this host. Browsers do not let other
+// sites add custom headers without CORS, which leanfeed never enables.
+func sameSiteHTMX(r *http.Request) bool {
+	if r.Header.Get("HX-Request") != "true" {
+		return false
+	}
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	u, err := url.Parse(origin)
+	return err == nil && u.Host != "" && u.Host == r.Host
 }
 
 // isPartial reports whether the request wants a partial: htmx requests do,
