@@ -9,6 +9,7 @@ import (
 	"embed"
 	"errors"
 	"html/template"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -62,6 +63,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/entries?view=unread", http.StatusFound)
 	})
+	s.mux.HandleFunc("GET /healthz", s.handleHealthz)
 	s.mux.HandleFunc("GET /entries", s.handleList)
 	s.mux.HandleFunc("GET /entries/{id}", s.handleEntry)
 	s.mux.HandleFunc("POST /entries/{id}/{action}", s.handleEntryAction)
@@ -73,6 +75,18 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /refresh", s.handleRefresh)
 	s.mux.HandleFunc("GET /opml", s.handleExportOPML)
 	s.mux.HandleFunc("POST /opml", s.handleImportOPML)
+}
+
+// handleHealthz reports whether the store answers. Monitors and container
+// health checks use it.
+func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
+	if _, err := s.store.ListFeeds(r.Context()); err != nil {
+		s.log.Error("health check failed", "err", err)
+		http.Error(w, "store unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	io.WriteString(w, "ok\n")
 }
 
 // contentSecurityPolicy allows scripts and styles only from leanfeed

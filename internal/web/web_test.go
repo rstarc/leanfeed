@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -472,5 +473,31 @@ func TestStaticAssets(t *testing.T) {
 		if rec.Code != http.StatusOK || !strings.HasPrefix(rec.Header().Get("Content-Type"), ctype) || rec.Body.Len() == 0 {
 			t.Errorf("GET %s = %d %q (%d bytes)", path, rec.Code, rec.Header().Get("Content-Type"), rec.Body.Len())
 		}
+	}
+}
+
+func TestHealthz(t *testing.T) {
+	f := newFixture(t)
+	rec := f.do("GET", "/healthz", false)
+	if rec.Code != http.StatusOK || rec.Body.String() != "ok\n" || !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/plain") {
+		t.Errorf("GET /healthz = %d %q %q", rec.Code, rec.Header().Get("Content-Type"), rec.Body)
+	}
+}
+
+// brokenStore fails every ListFeeds call.
+type brokenStore struct{ store.Store }
+
+func (brokenStore) ListFeeds(context.Context) ([]store.Feed, error) {
+	return nil, errors.New("disk on fire")
+}
+
+func TestHealthzReportsStoreFailure(t *testing.T) {
+	f := newFixture(t)
+	srv, err := New(brokenStore{f.store}, f.fetcher, quietLog)
+	must(t, err)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest("GET", "/healthz", nil))
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("GET /healthz with a failing store = %d, want 503", rec.Code)
 	}
 }

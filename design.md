@@ -344,6 +344,7 @@ Styling is one small hand-written CSS file with system fonts and light and dark 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/` | Redirect to `/entries?view=unread` |
+| GET | `/healthz` | `200 ok` if the store answers, else `503` |
 | GET | `/entries` | Entry list; query `view` (unread, all, starred), `feed`, `folder`, `page` |
 | GET | `/entries/{id}` | Entry view; marks it read |
 | POST | `/entries/{id}/read`, `/entries/{id}/unread` | Set read state; returns updated row |

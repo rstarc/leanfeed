@@ -107,6 +107,10 @@ docker run -d --name leanfeed -p 127.0.0.1:8080:8080 -v leanfeed-data:/data lean
 
 Inside the container leanfeed listens on all interfaces. The `-p 127.0.0.1:8080:8080` option publishes the port on localhost only. The image runs as a non-root user (UID 65532). If you mount a host directory instead of a named volume, that user must be able to write to it.
 
+### Health check
+
+`GET /healthz` answers `200` with the text `ok` when leanfeed can read its data, and `503` otherwise. Point an uptime monitor or a container orchestrator at it. The Docker image has no HTTP client, so a Docker `HEALTHCHECK` must run the check from outside the container.
+
 ## Security
 
 - leanfeed listens on `127.0.0.1` unless you set `--addr`. It has no login. Control access through the network, for example with a VPN such as Tailscale.
