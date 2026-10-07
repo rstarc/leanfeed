@@ -1,0 +1,22 @@
+{{define "layout" -}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "historyCacheSize": 0}'>
+<title>{{.Title}} · leanfeed</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+<div class="app">
+{{template "sidebar" .Sidebar}}
+<main class="main">
+{{with .List}}{{template "list" .}}{{end}}
+<section id="entry-pane" class="entry-pane">{{with .Entry}}{{template "entry" .}}{{end}}</section>
+</main>
+</div>
+</body>
+</html>
+{{- end}}

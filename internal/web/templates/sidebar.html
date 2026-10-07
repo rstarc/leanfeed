@@ -1,0 +1,21 @@
+{{define "nav-link"}}<a id="{{.ID}}" href="{{.Item.Href}}" hx-get="{{.Item.Href}}"{{if .Item.Current}} aria-current="page"{{end}}>{{.Item.Name}}{{if .Item.Unread}} <span class="count">{{.Item.Unread}}</span>{{end}}</a>{{end}}
+
+{{define "feed-item"}}<li class="feed">{{template "nav-link" (link (print "feed-" .ID) .NavItem)}}{{with .Error}} <span class="feed-error" title="Last fetch failed: {{.}}">!</span>{{end}}</li>{{end}}
+
+{{define "sidebar"}}
+<nav id="sidebar"{{if .OOB}} hx-swap-oob="true"{{end}} class="sidebar" hx-target="#list" hx-swap="outerHTML" hx-push-url="true">
+<details class="nav-toggle">
+<summary><span class="brand">leanfeed</span></summary>
+<ul class="views">
+{{range .Views}}<li>{{template "nav-link" (link (print "view-" .Key) .NavItem)}}</li>
+{{end}}</ul>
+<ul class="feeds">
+{{range .Folders}}<li class="folder">{{template "nav-link" (link (print "folder-" .Name) .NavItem)}}
+<ul>{{range .Feeds}}{{template "feed-item" .}}{{end}}</ul>
+</li>
+{{end}}{{range .Feeds}}{{template "feed-item" .}}
+{{end}}</ul>
+<p class="sidebar-footer"><a href="/feeds">Manage feeds</a></p>
+</details>
+</nav>
+{{end}}

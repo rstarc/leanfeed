@@ -1,59 +1,12 @@
 package filestore
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"leanfeed/internal/store"
+	"leanfeed/internal/store/filestore/corpus"
 )
-
-// writeCorpus subscribes to feeds and writes perFeed entries for each
-// directly as files, which is much faster than synced writes through the store.
-func writeCorpus(tb testing.TB, dir string, feeds, perFeed int) {
-	tb.Helper()
-	s, err := Open(dir, quietLog)
-	if err != nil {
-		tb.Fatal(err)
-	}
-	for f := range feeds {
-		feed, err := s.AddFeed(ctx, store.NewFeed{URL: fmt.Sprintf("https://f%d.example/feed", f), Title: fmt.Sprintf("Feed %d", f), Folder: fmt.Sprintf("Folder %d", f%5)})
-		if err != nil {
-			tb.Fatal(err)
-		}
-		for i := range perFeed {
-			e := store.Entry{
-				ID:          fmt.Sprintf("%016x", f*perFeed+i),
-				FeedID:      feed.ID,
-				GUID:        fmt.Sprintf("https://f%d.example/posts/%d", f, i),
-				URL:         fmt.Sprintf("https://f%d.example/posts/%d", f, i),
-				Title:       fmt.Sprintf("Post %d of feed %d", i, f),
-				Author:      "Jane Doe",
-				PublishedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).Add(time.Duration(i) * time.Hour),
-				Read:        i%3 == 0,
-				Starred:     i%50 == 0,
-			}
-			edir := filepath.Join(dir, "feeds", feed.ID, "entries", e.ID)
-			if err := os.MkdirAll(edir, 0o755); err != nil {
-				tb.Fatal(err)
-			}
-			meta, _ := json.MarshalIndent(e, "", "  ")
-			for name, data := range map[string][]byte{
-				"meta.json":        meta,
-				"content.raw.html": []byte("<p>raw</p>"),
-				"content.html":     []byte("<p>clean</p>"),
-			} {
-				if err := os.WriteFile(filepath.Join(edir, name), data, 0o644); err != nil {
-					tb.Fatal(err)
-				}
-			}
-		}
-	}
-	s.Close()
-}
 
 // TestIndexBuild10k guards N3: building the index for 10,000 entries takes
 // under 1 s with a warm OS cache.
@@ -62,7 +15,7 @@ func TestIndexBuild10k(t *testing.T) {
 		t.Skip("writes 30,000 files")
 	}
 	dir := t.TempDir()
-	writeCorpus(t, dir, 50, 200)
+	corpus.Write(t, dir, 50, 200)
 	s := open(t, dir) // warm the OS cache
 	s.Close()
 
@@ -83,7 +36,7 @@ func TestIndexBuild10k(t *testing.T) {
 
 func BenchmarkOpen10k(b *testing.B) {
 	dir := b.TempDir()
-	writeCorpus(b, dir, 50, 200)
+	corpus.Write(b, dir, 50, 200)
 	for b.Loop() {
 		s, err := Open(dir, quietLog)
 		if err != nil {
@@ -95,7 +48,7 @@ func BenchmarkOpen10k(b *testing.B) {
 
 func BenchmarkListEntries10k(b *testing.B) {
 	dir := b.TempDir()
-	writeCorpus(b, dir, 50, 200)
+	corpus.Write(b, dir, 50, 200)
 	s, err := Open(dir, quietLog)
 	if err != nil {
 		b.Fatal(err)

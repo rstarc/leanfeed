@@ -1,0 +1,46 @@
+{{define "list"}}
+<section id="list" class="list">
+<header class="list-header">
+<h1>{{.Heading}}</h1>
+<button type="button" hx-post="{{.Query.MarkReadURL}}" hx-target="#list" hx-swap="outerHTML" hx-confirm="Mark all entries in this list as read?">Mark all read</button>
+</header>
+<ul class="entries">
+{{range .Rows}}{{template "row" .}}
+{{else}}<li class="empty">No entries.</li>
+{{end}}</ul>
+{{if or .PrevURL .NextURL}}<nav class="pager" hx-target="#list" hx-swap="outerHTML" hx-push-url="true">
+{{with .PrevURL}}<a href="{{.}}" hx-get="{{.}}">← Newer</a>{{end}}
+{{with .NextURL}}<a href="{{.}}" hx-get="{{.}}">Older →</a>{{end}}
+</nav>{{end}}
+</section>
+{{end}}
+
+{{define "row"}}
+<li id="entry-{{.ID}}" class="row{{if not .Read}} unread{{end}}{{if .Starred}} starred{{end}}"{{if .OOB}} hx-swap-oob="true"{{end}}>
+<a class="entry-title" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#entry-pane" hx-push-url="true">{{or .Title "(untitled)"}}</a>
+<span class="meta"><span class="feed-title">{{.FeedTitle}}</span> <time datetime="{{.PublishedAt.Format "2006-01-02T15:04:05Z07:00"}}">{{date .PublishedAt}}</time></span>
+<span class="row-actions">
+{{if .Read}}<button type="button" class="icon" title="Mark unread" hx-post="/entries/{{.ID}}/unread" hx-swap="none">○</button>{{else}}<button type="button" class="icon" title="Mark read" hx-post="/entries/{{.ID}}/read" hx-swap="none">●</button>{{end}}
+{{if .Starred}}<button type="button" class="icon star" title="Unstar" hx-post="/entries/{{.ID}}/unstar" hx-swap="none">★</button>{{else}}<button type="button" class="icon star" title="Star" hx-post="/entries/{{.ID}}/star" hx-swap="none">☆</button>{{end}}
+</span>
+</li>
+{{end}}
+
+{{define "entry"}}
+<article id="entry" class="entry">
+<a class="back" href="{{.Query.URL}}">← Back to list</a>
+<header>
+<h1><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{or .Title "(untitled)"}}</a></h1>
+<p class="meta">{{.FeedTitle}}{{with .Author}} · {{.}}{{end}} · <time datetime="{{.PublishedAt.Format "2006-01-02T15:04:05Z07:00"}}">{{date .PublishedAt}}</time></p>
+{{template "entry-actions" .}}
+</header>
+<div class="content">{{.Content}}</div>
+</article>
+{{end}}
+
+{{define "entry-actions"}}
+<div id="entry-actions-{{.ID}}" class="entry-actions"{{if .OOB}} hx-swap-oob="true"{{end}}>
+{{if .Read}}<button type="button" hx-post="/entries/{{.ID}}/unread" hx-swap="none">Mark unread</button>{{else}}<button type="button" hx-post="/entries/{{.ID}}/read" hx-swap="none">Mark read</button>{{end}}
+{{if .Starred}}<button type="button" hx-post="/entries/{{.ID}}/unstar" hx-swap="none">★ Starred</button>{{else}}<button type="button" hx-post="/entries/{{.ID}}/star" hx-swap="none">☆ Star</button>{{end}}
+</div>
+{{end}}
