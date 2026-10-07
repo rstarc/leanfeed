@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<rss version="2.0"><channel><title>Café Latin</title><link>https://latin.example/</link><description>d</description>
+<item><title>Crème brûlée</title><link>https://latin.example/1</link><guid>latin-1</guid><pubDate>Mon, 05 Oct 2026 10:00:00 GMT</pubDate><description>Café</description></item>
+</channel></rss>

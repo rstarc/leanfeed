@@ -1,0 +1,23 @@
+{
+  "version": "https://jsonfeed.org/version/1.1",
+  "title": "Example JSON Feed",
+  "home_page_url": "https://json.example/",
+  "feed_url": "https://json.example/feed.json",
+  "items": [
+    {
+      "id": "json-2",
+      "url": "https://json.example/2",
+      "title": "JSON item two",
+      "content_html": "<p>JSON <i>HTML</i> content.</p>",
+      "date_published": "2026-10-06T12:00:00Z",
+      "authors": [{"name": "Kim Poe"}]
+    },
+    {
+      "id": "json-1",
+      "url": "https://json.example/1",
+      "title": "JSON item one",
+      "content_text": "Plain text content.",
+      "date_published": "2026-10-02T12:00:00Z"
+    }
+  ]
+}

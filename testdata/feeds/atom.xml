@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Example Atom</title>
+  <link href="https://atom.example/" rel="alternate"/>
+  <link href="https://atom.example/atom.xml" rel="self"/>
+  <id>urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</id>
+  <updated>2026-10-06T18:30:02Z</updated>
+  <author><name>John Roe</name></author>
+  <entry>
+    <title>Atom entry two</title>
+    <link href="https://atom.example/2026/10/06/two" rel="alternate"/>
+    <id>urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a</id>
+    <published>2026-10-06T18:30:02Z</published>
+    <updated>2026-10-06T19:00:00Z</updated>
+    <content type="html">&lt;p&gt;Atom &lt;b&gt;HTML&lt;/b&gt; content.&lt;/p&gt;</content>
+  </entry>
+  <entry>
+    <title>Atom entry one</title>
+    <link href="https://atom.example/2026/10/01/one"/>
+    <id>urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6b</id>
+    <updated>2026-10-01T10:00:00Z</updated>
+    <summary>Only a summary and an updated date.</summary>
+  </entry>
+</feed>

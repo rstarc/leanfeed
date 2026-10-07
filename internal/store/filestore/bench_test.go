@@ -76,7 +76,7 @@ func TestIndexBuild10k(t *testing.T) {
 		t.Fatalf("loaded %d entries, want 10000", page.Total)
 	}
 	t.Logf("index build for 10,000 entries: %v", elapsed)
-	if elapsed > time.Second {
+	if elapsed > time.Second && !raceEnabled {
 		t.Errorf("index build took %v, want under 1 s (N3)", elapsed)
 	}
 }

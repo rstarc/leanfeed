@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+  <title>Duplicates</title><link>https://dup.example/</link><description>d</description>
+  <item><title>Same</title><link>https://dup.example/1</link><guid>dup-1</guid><pubDate>Mon, 05 Oct 2026 10:00:00 GMT</pubDate><description>x</description></item>
+  <item><title>Same</title><link>https://dup.example/1</link><guid>dup-1</guid><pubDate>Mon, 05 Oct 2026 10:00:00 GMT</pubDate><description>x</description></item>
+  <item><title>Other</title><link>https://dup.example/2</link><guid>dup-2</guid><pubDate>Mon, 05 Oct 2026 11:00:00 GMT</pubDate><description>y</description></item>
+</channel></rss>

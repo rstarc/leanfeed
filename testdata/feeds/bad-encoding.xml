@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>Bad encoding</title><link>https://bad.example/</link><description>d</description>
+<item><title>Café au lait</title><link>https://bad.example/1</link><guid>bad-1</guid><pubDate>Mon, 05 Oct 2026 10:00:00 GMT</pubDate><description>x</description></item>
+</channel></rss>
