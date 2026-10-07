@@ -2,18 +2,31 @@
 
 leanfeed is a small, self-hosted RSS, Atom and JSON Feed reader for one person. It is one Go binary with a web interface. It keeps all data as plain files: OPML for subscriptions, JSON for metadata, HTML for content. You can read, search, back up and version-control these files without leanfeed.
 
-## Build and run
+## Getting started
 
-You need Go 1.22 or newer.
+You need Go 1.26 or newer and `make`.
 
 ```sh
-go build -ldflags "-X main.version=$(git describe --tags --always)" -o leanfeed ./cmd/leanfeed
-./leanfeed serve
+make            # run all tests, then build bin/leanfeed
+bin/leanfeed serve
 ```
 
-Then open <http://127.0.0.1:8080>. Go to **Manage feeds** to add a feed by URL or to import an OPML file.
+Open <http://127.0.0.1:8080>. Choose **Manage feeds** to add a feed by its URL or to import an OPML file from another reader.
 
-## Commands
+Drag the line between two columns to change their width; double-click it to reset it. The « button hides the menu, and » shows it again. Your browser remembers these settings.
+
+Other `make` targets:
+
+| Target | What it does |
+| --- | --- |
+| `make build` | Builds `bin/leanfeed`. The version is taken from `git describe`. |
+| `make test` | Runs all tests, including the slow checks with 10,000 entries and 300 feeds. |
+| `make test-short` | Runs the tests without the slow checks. |
+| `make clean` | Removes `bin/`. |
+
+## Configuration
+
+### Commands
 
 | Command | What it does |
 | --- | --- |
@@ -21,21 +34,26 @@ Then open <http://127.0.0.1:8080>. Go to **Manage feeds** to add a feed by URL o
 | `leanfeed import FILE` | Imports subscriptions from an OPML file. |
 | `leanfeed export` | Writes subscriptions as OPML to standard output. |
 | `leanfeed --version` | Prints the version. |
+| `leanfeed --help` | Lists the commands and flags. `leanfeed COMMAND --help` shows help for one command. |
 
 Run `import` and `export` only while the server is stopped. They read and write the data directory directly.
 
-## Configuration
+### Parameters
 
-Every setting is a flag with a matching environment variable. A flag wins over the environment variable.
+Each parameter can be set with a flag or an environment variable. A flag wins over an environment variable, and an environment variable wins over the default. An empty environment variable counts as not set. Flags can come before or after the command, for example `leanfeed --data /srv/leanfeed serve` or `leanfeed serve --data /srv/leanfeed`.
 
 | Flag | Environment variable | Default | Meaning |
 | --- | --- | --- | --- |
-| `--data` | `LEANFEED_DATA` | `./data` | Data directory |
-| `--addr` | `LEANFEED_ADDR` | `127.0.0.1:8080` | Listen address |
-| `--interval` | `LEANFEED_INTERVAL` | `30m` | Time between fetches of a feed (at least `1m`) |
-| `--workers` | `LEANFEED_WORKERS` | `4` | Number of feeds fetched at the same time |
+| `--data DIR` | `LEANFEED_DATA` | `./data` | Directory that holds all subscriptions, entries and fetch state. leanfeed creates it if it does not exist. |
+| `--addr HOST:PORT` | `LEANFEED_ADDR` | `127.0.0.1:8080` | Address the web server listens on. The default accepts connections from this computer only. |
+| `--interval DURATION` | `LEANFEED_INTERVAL` | `30m` | Time between two fetches of the same feed, written like `45m` or `2h`. The minimum is `1m`. |
+| `--workers N` | `LEANFEED_WORKERS` | `4` | Number of feeds fetched at the same time. The minimum is `1`. |
+
+`serve` uses all four parameters. `import` and `export` use only `--data`.
 
 After a failed fetch, leanfeed doubles the wait for each further failure, up to 24 hours. It honours `Retry-After` on HTTP 429 and 503 responses.
+
+Exit codes: `0` means success, `1` means the command failed, and `2` means the command line was wrong.
 
 ## Data directory
 
@@ -69,6 +87,7 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
+# Copy bin/leanfeed from `make build` to /usr/local/bin.
 ExecStart=/usr/local/bin/leanfeed serve
 Environment=LEANFEED_DATA=/var/lib/leanfeed
 DynamicUser=yes
@@ -98,13 +117,27 @@ Inside the container leanfeed listens on all interfaces. The `-p 127.0.0.1:8080:
 ## Development
 
 ```sh
-go test ./...           # all tests, including the 10,000-entry and 300-feed checks
-go test -short ./...    # skips the slow checks
+make test               # all tests, including the 10,000-entry and 300-feed checks
+make test-short         # skips the slow checks and the browser tests
+make test-ui            # only the UI flow tests and the browser tests
 go test -race ./...
 go test -run XXX -bench . ./internal/store/filestore ./internal/web
 ```
 
-The fetcher tests start local HTTP servers with `httptest`, so they need permission to listen on a local port.
+The fetcher and browser tests start local HTTP servers with `httptest`, so they need permission to listen on a local port.
+
+### UI tests
+
+The UI has two kinds of tests in `internal/web`:
+
+- **Flow tests** (`flows_test.go`) click through the UI like a user, for example "open the feeds page, add a feed, click the feed in the sidebar". They run without a browser: a small stand-in for htmx in `uiharness_test.go` sends the requests htmx would send and applies the responses to an in-memory page. They are fast and run everywhere, but they do not run JavaScript or CSS.
+- **Browser tests** (`browser_test.go`) drive headless Chrome through the main journeys with real htmx, CSS and Content Security Policy. Each test fails if the page reports a CSP violation, a JavaScript error or an htmx error. They need Chrome: `nix develop` provides it and sets `LEANFEED_CHROME`. Without Chrome, or with `-short`, they are skipped.
+
+```sh
+nix develop -c make test-ui
+```
+
+The flake allows the unfree `google-chrome` package on macOS, because nixpkgs has no Chromium build for macOS. On Linux it uses Chromium. Nix flakes only see files that git tracks, so `flake.nix` must be added to git before `nix develop` works.
 
 Code layout:
 

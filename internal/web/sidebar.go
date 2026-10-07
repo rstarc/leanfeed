@@ -36,11 +36,12 @@ type sidebarData struct {
 	Views   []viewItem
 	Folders []folderItem
 	Feeds   []feedItem // not in a folder
+	Manage  bool       // the feed management page is shown
 	OOB     bool
 }
 
-// sidebarData lists views, folders and feeds with unread counts. Folder
-// and feed links keep the current view; current is also highlighted.
+// sidebarData lists views, folders and feeds with unread counts. current
+// is the list shown, which is highlighted; an empty View highlights no list.
 func (s *Server) sidebarData(ctx context.Context, current listQuery) (sidebarData, error) {
 	feeds, err := s.store.ListFeeds(ctx)
 	if err != nil {
@@ -52,10 +53,15 @@ func (s *Server) sidebarData(ctx context.Context, current listQuery) (sidebarDat
 	}
 
 	var d sidebarData
+	// Folder and feed links keep the current view.
+	linkView := current.View
+	if linkView == "" {
+		linkView = "unread"
+	}
 	total := 0
 	folders := map[string]*folderItem{}
 	for _, f := range feeds {
-		q := listQuery{View: current.View, Feed: f.ID, Page: 1}
+		q := listQuery{View: linkView, Feed: f.ID, Page: 1}
 		item := feedItem{
 			NavItem: NavItem{Name: f.Title, Href: q.URL(), Unread: counts[f.ID], Current: current.Feed == f.ID},
 			ID:      f.ID,
@@ -70,7 +76,7 @@ func (s *Server) sidebarData(ctx context.Context, current listQuery) (sidebarDat
 		}
 		folder := folders[f.Folder]
 		if folder == nil {
-			q := listQuery{View: current.View, Folder: f.Folder, Page: 1}
+			q := listQuery{View: linkView, Folder: f.Folder, Page: 1}
 			folder = &folderItem{NavItem: NavItem{Name: f.Folder, Href: q.URL(), Current: current.Folder == f.Folder && current.Feed == ""}}
 			folders[f.Folder] = folder
 		}

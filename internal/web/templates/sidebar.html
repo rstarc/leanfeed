@@ -3,19 +3,35 @@
 {{define "feed-item"}}<li class="feed">{{template "nav-link" (link (print "feed-" .ID) .NavItem)}}{{with .Error}} <span class="feed-error" title="Last fetch failed: {{.}}">!</span>{{end}}</li>{{end}}
 
 {{define "sidebar"}}
-<nav id="sidebar"{{if .OOB}} hx-swap-oob="true"{{end}} class="sidebar" hx-target="#list" hx-swap="outerHTML" hx-push-url="true">
+<nav id="sidebar"{{if .OOB}} hx-swap-oob="true"{{end}} class="sidebar" aria-label="Menu" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">
+<button type="button" class="menu-hide" data-menu-toggle aria-label="Hide menu" title="Hide menu">«</button>
 <details class="nav-toggle">
 <summary><span class="brand">leanfeed</span></summary>
+
+<section class="nav-section" aria-labelledby="nav-views">
+<h2 id="nav-views">Views</h2>
 <ul class="views">
 {{range .Views}}<li>{{template "nav-link" (link (print "view-" .Key) .NavItem)}}</li>
 {{end}}</ul>
+</section>
+
+<section class="nav-section" aria-labelledby="nav-feeds">
+<h2 id="nav-feeds">Feeds</h2>
 <ul class="feeds">
 {{range .Folders}}<li class="folder">{{template "nav-link" (link (print "folder-" .Name) .NavItem)}}
 <ul>{{range .Feeds}}{{template "feed-item" .}}{{end}}</ul>
 </li>
 {{end}}{{range .Feeds}}{{template "feed-item" .}}
-{{end}}</ul>
-<p class="sidebar-footer"><a href="/feeds">Manage feeds</a></p>
+{{end}}{{if not (or .Folders .Feeds)}}<li class="empty">No feeds yet.</li>{{end}}</ul>
+</section>
+
+<section class="nav-section" aria-labelledby="nav-config">
+<h2 id="nav-config">Configuration</h2>
+<ul class="config">
+<li><a href="/feeds"{{if .Manage}} aria-current="page"{{end}}>Manage feeds</a></li>
+<li><a href="/opml" download>Export OPML</a></li>
+</ul>
+</section>
 </details>
 </nav>
 {{end}}

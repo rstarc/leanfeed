@@ -47,11 +47,12 @@ func (s *Server) renderManage(w http.ResponseWriter, r *http.Request, status int
 		s.fail(w, err)
 		return
 	}
-	sidebar, err := s.sidebarData(r.Context(), currentQuery(r))
+	sidebar, err := s.sidebarData(r.Context(), listQuery{})
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
+	sidebar.Manage = true
 	if isPartial(r) {
 		sidebar.OOB = true
 		s.renderStatus(w, status, part{"manage", manage}, part{"sidebar", sidebar})

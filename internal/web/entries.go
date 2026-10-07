@@ -198,7 +198,16 @@ func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if isPartial(r) {
-		s.render(w, part{"list", list})
+		// Sidebar and pager links replace the whole main area, which
+		// also closes any open entry. The sidebar is sent along so it
+		// highlights the new list.
+		sidebar, err := s.sidebarData(r.Context(), q)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		sidebar.OOB = true
+		s.render(w, part{"list", list}, part{"entry-pane", (*entryData)(nil)}, part{"sidebar", sidebar})
 		return
 	}
 	s.renderPage(w, r, q, pageData{Title: list.Heading, List: list})

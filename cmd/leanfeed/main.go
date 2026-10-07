@@ -2,25 +2,27 @@
 //
 // Usage:
 //
-//	leanfeed [flags] serve           run the web server and the fetcher
-//	leanfeed [flags] import FILE     import subscriptions from OPML (server stopped)
-//	leanfeed [flags] export          write subscriptions as OPML to stdout
+//	leanfeed serve           run the web server and the fetcher
+//	leanfeed import FILE     import subscriptions from OPML (server stopped)
+//	leanfeed export          write subscriptions as OPML to stdout
 //	leanfeed --version
+//
+// Run leanfeed --help for the flags and their environment variables.
 package main
 
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/spf13/cobra"
 
 	"leanfeed/internal/fetcher"
 	"leanfeed/internal/store/filestore"
@@ -30,125 +32,129 @@ import (
 // version is set at build time with -ldflags "-X main.version=...".
 var version = "dev"
 
-const usage = `Usage:
-  leanfeed [flags] serve          run the web server and the fetcher
-  leanfeed [flags] import FILE    import subscriptions from an OPML file
-  leanfeed [flags] export         write subscriptions as OPML to stdout
-  leanfeed --version              print the version
-
-Run import and export only while the server is stopped.
-
-Flags (environment variable in brackets):
-  --data DIR        data directory [LEANFEED_DATA] (default ./data)
-  --addr HOST:PORT  listen address [LEANFEED_ADDR] (default 127.0.0.1:8080)
-  --interval DUR    time between fetches of a feed [LEANFEED_INTERVAL] (default 30m)
-  --workers N       concurrent fetches [LEANFEED_WORKERS] (default 4)
-`
-
 // minInterval matches the scheduler, which looks for due feeds once a minute.
 const minInterval = time.Minute
 
 type config struct {
-	Command  string
 	Data     string
 	Addr     string
 	Interval time.Duration
 	Workers  int
 }
 
-// parseConfig reads settings from defaults, then environment variables,
-// then flags, which may come before or after the command. It returns the
-// command's remaining arguments.
-func parseConfig(args []string, getenv func(string) string) (config, []string, error) {
-	cfg := config{Data: "./data", Addr: "127.0.0.1:8080", Interval: 30 * time.Minute, Workers: 4}
-	if v := getenv("LEANFEED_DATA"); v != "" {
-		cfg.Data = v
-	}
-	if v := getenv("LEANFEED_ADDR"); v != "" {
-		cfg.Addr = v
-	}
-	if v := getenv("LEANFEED_INTERVAL"); v != "" {
-		d, err := time.ParseDuration(v)
-		if err != nil {
-			return cfg, nil, fmt.Errorf("LEANFEED_INTERVAL: %w", err)
-		}
-		cfg.Interval = d
-	}
-	if v := getenv("LEANFEED_WORKERS"); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			return cfg, nil, fmt.Errorf("LEANFEED_WORKERS: %w", err)
-		}
-		cfg.Workers = n
-	}
-
-	fs := flag.NewFlagSet("leanfeed", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	fs.StringVar(&cfg.Data, "data", cfg.Data, "")
-	fs.StringVar(&cfg.Addr, "addr", cfg.Addr, "")
-	fs.DurationVar(&cfg.Interval, "interval", cfg.Interval, "")
-	fs.IntVar(&cfg.Workers, "workers", cfg.Workers, "")
-	showVersion := fs.Bool("version", false, "")
-	if err := fs.Parse(args); err != nil {
-		return cfg, nil, err
-	}
-	if *showVersion {
-		cfg.Command = "version"
-		return cfg, nil, nil
-	}
-	if fs.NArg() == 0 {
-		return cfg, nil, errors.New("no command given")
-	}
-	cfg.Command = fs.Arg(0)
-	if err := fs.Parse(fs.Args()[1:]); err != nil {
-		return cfg, nil, err
-	}
-	rest := fs.Args()
-
-	if cfg.Interval < minInterval {
-		return cfg, nil, fmt.Errorf("interval %v is shorter than %v", cfg.Interval, minInterval)
-	}
-	if cfg.Workers < 1 {
-		return cfg, nil, fmt.Errorf("workers must be at least 1, not %d", cfg.Workers)
-	}
-	switch {
-	case cfg.Command == "import" && len(rest) != 1:
-		return cfg, nil, errors.New("import needs exactly one OPML file")
-	case (cfg.Command == "serve" || cfg.Command == "export") && len(rest) != 0:
-		return cfg, nil, fmt.Errorf("%s takes no arguments", cfg.Command)
-	case cfg.Command != "serve" && cfg.Command != "import" && cfg.Command != "export":
-		return cfg, nil, fmt.Errorf("unknown command %q", cfg.Command)
-	}
-	if len(rest) == 0 {
-		rest = nil
-	}
-	return cfg, rest, nil
+// envVars maps each flag to the environment variable that sets it when the
+// flag is not given.
+var envVars = []struct{ flag, env string }{
+	{"data", "LEANFEED_DATA"},
+	{"addr", "LEANFEED_ADDR"},
+	{"interval", "LEANFEED_INTERVAL"},
+	{"workers", "LEANFEED_WORKERS"},
 }
 
-// run executes the command line and returns the exit code: 0 for success,
-// 1 for failure and 2 for usage errors.
-func run(args []string, getenv func(string) string, stdout, stderr io.Writer) int {
-	cfg, rest, err := parseConfig(args, getenv)
-	if err != nil {
-		fmt.Fprintf(stderr, "leanfeed: %v\n\n%s", err, usage)
-		return 2
+// usageError marks a mistake in the command line. It exits with code 2.
+type usageError struct{ err error }
+
+func (e usageError) Error() string { return e.err.Error() }
+
+// usageArgs marks argument errors from v as usage errors.
+func usageArgs(v cobra.PositionalArgs) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if err := v(cmd, args); err != nil {
+			return usageError{err}
+		}
+		return nil
 	}
-	switch cfg.Command {
-	case "version":
-		fmt.Fprintf(stdout, "leanfeed %s\n", version)
+}
+
+// execute runs the command line and returns the exit code: 0 for success,
+// 1 for failure and 2 for usage errors. serve runs the server; tests pass
+// their own.
+func execute(args []string, getenv func(string) string, stdout, stderr io.Writer, serve func(config, *slog.Logger) error) int {
+	cfg := config{Data: "./data", Addr: "127.0.0.1:8080", Interval: 30 * time.Minute, Workers: 4}
+
+	root := &cobra.Command{
+		Use:           "leanfeed",
+		Short:         "leanfeed is a minimal self-hosted RSS, Atom and JSON Feed reader.",
+		Version:       version,
+		Args:          usageArgs(cobra.NoArgs),
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cmd.Help()
+		},
+	}
+	root.SetArgs(args)
+	root.SetOut(stdout)
+	root.SetErr(stderr)
+	root.SetVersionTemplate("leanfeed {{.Version}}\n")
+	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return usageError{err} })
+	root.CompletionOptions.DisableDefaultCmd = true
+
+	flags := root.PersistentFlags()
+	flags.StringVar(&cfg.Data, "data", cfg.Data, "data directory [LEANFEED_DATA]")
+	flags.StringVar(&cfg.Addr, "addr", cfg.Addr, "listen address [LEANFEED_ADDR]")
+	flags.DurationVar(&cfg.Interval, "interval", cfg.Interval, "time between fetches of a feed, at least 1m [LEANFEED_INTERVAL]")
+	flags.IntVar(&cfg.Workers, "workers", cfg.Workers, "number of feeds fetched at the same time [LEANFEED_WORKERS]")
+	root.PersistentPreRunE = func(*cobra.Command, []string) error {
+		for _, v := range envVars {
+			value := getenv(v.env)
+			if value == "" || flags.Changed(v.flag) {
+				continue
+			}
+			if err := flags.Set(v.flag, value); err != nil {
+				return usageError{fmt.Errorf("%s: %w", v.env, err)}
+			}
+		}
+		if cfg.Interval < minInterval {
+			return usageError{fmt.Errorf("interval %v is shorter than %v", cfg.Interval, minInterval)}
+		}
+		if cfg.Workers < 1 {
+			return usageError{fmt.Errorf("workers must be at least 1, not %d", cfg.Workers)}
+		}
+		return nil
+	}
+
+	root.AddCommand(
+		&cobra.Command{
+			Use:   "serve",
+			Short: "Run the web server and fetch feeds on a schedule",
+			Args:  usageArgs(cobra.NoArgs),
+			RunE: func(*cobra.Command, []string) error {
+				return serve(cfg, slog.New(slog.NewTextHandler(stdout, nil)))
+			},
+		},
+		&cobra.Command{
+			Use:   "import FILE",
+			Short: "Import subscriptions from an OPML file",
+			Long:  "Import subscriptions from an OPML file. Run it only while the server is stopped.",
+			Args:  usageArgs(cobra.ExactArgs(1)),
+			RunE: func(_ *cobra.Command, args []string) error {
+				return importOPML(cfg, args[0], stdout, slog.New(slog.NewTextHandler(stderr, nil)))
+			},
+		},
+		&cobra.Command{
+			Use:   "export",
+			Short: "Write subscriptions as OPML to standard output",
+			Long:  "Write subscriptions as OPML to standard output. Run it only while the server is stopped.",
+			Args:  usageArgs(cobra.NoArgs),
+			RunE: func(*cobra.Command, []string) error {
+				return exportOPML(cfg, stdout, slog.New(slog.NewTextHandler(stderr, nil)))
+			},
+		},
+	)
+
+	err := root.Execute()
+	var uerr usageError
+	switch {
+	case err == nil:
 		return 0
-	case "serve":
-		err = serve(cfg, slog.New(slog.NewTextHandler(stdout, nil)))
-	case "import":
-		err = importOPML(cfg, rest[0], stdout, slog.New(slog.NewTextHandler(stderr, nil)))
-	case "export":
-		err = exportOPML(cfg, stdout, slog.New(slog.NewTextHandler(stderr, nil)))
-	}
-	if err != nil {
+	case errors.As(err, &uerr):
+		fmt.Fprintf(stderr, "leanfeed: %v\nRun 'leanfeed --help' for usage.\n", err)
+		return 2
+	default:
 		fmt.Fprintf(stderr, "leanfeed: %v\n", err)
 		return 1
 	}
-	return 0
 }
 
 func importOPML(cfg config, file string, stdout io.Writer, log *slog.Logger) error {
@@ -238,5 +244,5 @@ func serve(cfg config, log *slog.Logger) error {
 }
 
 func main() {
-	os.Exit(run(os.Args[1:], os.Getenv, os.Stdout, os.Stderr))
+	os.Exit(execute(os.Args[1:], os.Getenv, os.Stdout, os.Stderr, serve))
 }

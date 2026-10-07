@@ -72,23 +72,62 @@ input, select {
   font-variant-numeric: tabular-nums;
 }
 
-/* Layout: sidebar | list | entry on wide screens. */
+/* Layout on wide screens: sidebar | list | entry, with a splitter after
+   the sidebar and after the list. ui.js sets --sidebar-width and
+   --list-width when the user drags a splitter. */
 
 .app {
   display: grid;
-  grid-template-columns: 16rem minmax(18rem, 26rem) 1fr;
+  grid-template-columns: var(--sidebar-width, 16rem) 5px var(--list-width, 26rem) 5px minmax(0, 1fr);
+  grid-template-rows: 100vh;
   height: 100vh;
 }
 
 .main { display: contents; }
 
-.sidebar, .list, .entry-pane { overflow-y: auto; }
+.sidebar, .list, .entry-pane, .manage { overflow-y: auto; grid-row: 1; min-width: 0; }
+.sidebar { grid-column: 1; }
+.splitter[data-resize="sidebar"] { grid-column: 2; grid-row: 1; }
+.list { grid-column: 3; }
+.splitter[data-resize="list"] { grid-column: 4; grid-row: 1; }
+.entry-pane { grid-column: 5; }
+.manage { grid-column: 3 / span 3; }
+.app:has(.manage) .splitter[data-resize="list"] { display: none; }
+
+/* A splitter shows a one-pixel line and highlights while in use. */
+.splitter {
+  cursor: col-resize;
+  touch-action: none;
+  background: linear-gradient(to right, transparent 2px, var(--line) 2px, var(--line) 3px, transparent 3px);
+}
+.splitter:hover, .splitter:focus-visible, .splitter.dragging {
+  background: var(--accent);
+  outline: none;
+}
+
+.menu-hide, .menu-show {
+  border: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.2rem 0.4rem;
+}
+.menu-hide { position: absolute; top: 0.55rem; right: 0.4rem; }
+.menu-show { display: none; position: fixed; top: 0.65rem; left: 0.4rem; z-index: 1; }
+
+/* The hidden menu takes no space; the Show menu button sits in the corner. */
+@media (min-width: 801px) {
+  .menu-hidden .app { grid-template-columns: 0 0 var(--list-width, 26rem) 5px minmax(0, 1fr); }
+  .menu-hidden .sidebar, .menu-hidden .splitter[data-resize="sidebar"] { display: none; }
+  .menu-hidden .menu-show { display: block; }
+  .menu-hidden .list-header, .menu-hidden .manage { padding-left: 2.5rem; }
+}
 
 /* Sidebar */
 
 .sidebar {
+  position: relative;
   background: var(--bg-side);
-  border-right: 1px solid var(--line);
   padding: 0.75rem 0.5rem;
   font-size: 0.9rem;
 }
@@ -97,7 +136,17 @@ input, select {
 .brand { font-weight: 700; letter-spacing: 0.02em; }
 .sidebar ul { list-style: none; margin: 0; padding: 0; }
 .sidebar ul ul { padding-left: 0.75rem; }
-.sidebar .views { margin-bottom: 0.75rem; }
+.nav-section { margin-bottom: 1rem; }
+.nav-section h2 {
+  margin: 0 0 0.25rem;
+  padding: 0 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.nav-section .empty { padding: 0.15rem 0.5rem; color: var(--muted); }
 .sidebar li > a {
   display: block;
   padding: 0.15rem 0.5rem;
@@ -119,7 +168,6 @@ input, select {
   font-weight: 700;
   cursor: help;
 }
-.sidebar-footer { margin: 1rem 0.5rem 0; font-size: 0.85rem; }
 
 /* On wide screens the sidebar is always expanded. */
 @media (min-width: 801px) {
@@ -129,7 +177,6 @@ input, select {
 
 /* Entry list */
 
-.list { border-right: 1px solid var(--line); }
 .list-header {
   position: sticky;
   top: 0;
@@ -177,7 +224,7 @@ input, select {
 
 /* Feed management page */
 
-.manage { grid-column: 2 / span 2; overflow-y: auto; padding: 1.5rem 2rem 4rem; }
+.manage { padding: 1.5rem 2rem 4rem; }
 .manage h1 { margin-top: 0; font-size: 1.4rem; }
 .manage h2 { font-size: 1.1rem; margin-top: 2rem; }
 .manage form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
@@ -194,8 +241,8 @@ input, select {
 @media (max-width: 800px) {
   .app { display: block; height: auto; }
   .main { display: block; }
-  .sidebar { border-right: none; border-bottom: 1px solid var(--line); }
-  .list { border-right: none; }
+  .splitter, .menu-hide, .menu-show { display: none; }
+  .sidebar { border-bottom: 1px solid var(--line); }
   .main:has(#entry) .list { display: none; }
   .entry { padding: 1rem; }
   .entry .back { display: inline-block; }

@@ -274,8 +274,11 @@ func TestEntriesViewsAndFilters(t *testing.T) {
 func TestEntriesHTMXPartial(t *testing.T) {
 	f := newFixture(t)
 	body := f.do("GET", "/entries?view=all", true).Body.String()
-	if strings.Contains(strings.ToLower(body), "<html") || strings.Contains(body, `id="sidebar"`) {
+	if strings.Contains(strings.ToLower(body), "<html") {
 		t.Errorf("htmx request got a full page:\n%s", body)
+	}
+	if strings.Contains(body, `id="sidebar"`) && !strings.Contains(body, `id="sidebar" hx-swap-oob="true"`) {
+		t.Errorf("the partial's sidebar is not an out-of-band update:\n%s", body)
 	}
 	if len(listedTitles(t, body)) != 3 {
 		t.Errorf("partial lists %v", listedTitles(t, body))
