@@ -58,24 +58,50 @@ type probed struct {
 	parsed *gofeed.Feed
 }
 
-// probe fetches and parses feedURL without changing the store.
+// probe fetches and parses feedURL without changing the store. If feedURL
+// is a web page that links to feeds, probe tries the first maxFeedLinks of
+// them in order and returns the first that is a feed.
 func (f *Fetcher) probe(ctx context.Context, feedURL string) (probed, error) {
-	if err := store.CheckFeedURL(feedURL); err != nil {
+	p, res, err := f.probeOne(ctx, feedURL)
+	if err == nil || res.body == nil {
+		return p, err
+	}
+	links := feedLinks(res.body, res.url)
+	if len(links) == 0 {
 		return probed{}, err
+	}
+	var firstErr error
+	for _, link := range links[:min(len(links), maxFeedLinks)] {
+		p, _, err := f.probeOne(ctx, link)
+		if err == nil {
+			return p, nil
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+	return probed{}, fmt.Errorf("%s links to feeds, but none could be read: %w", feedURL, firstErr)
+}
+
+// probeOne fetches and parses feedURL. If the response is not a feed, it
+// also returns the response, so its body can be searched for feed links.
+func (f *Fetcher) probeOne(ctx context.Context, feedURL string) (probed, response, error) {
+	if err := store.CheckFeedURL(feedURL); err != nil {
+		return probed{}, response{}, err
 	}
 	res, err := f.get(ctx, feedURL, "", "")
 	if err != nil {
-		return probed{}, fmt.Errorf("fetching %s: %w", feedURL, err)
+		return probed{}, response{}, fmt.Errorf("fetching %s: %w", feedURL, err)
 	}
 	parsed, err := parse(res.body)
 	if err != nil {
-		return probed{}, err
+		return probed{}, res, err
 	}
 	if res.permanentURL != "" {
 		feedURL = res.permanentURL
 		res.permanentURL = "" // stored as the feed URL, not as a redirect
 	}
-	return probed{url: feedURL, res: res, parsed: parsed}, nil
+	return probed{url: feedURL, res: res, parsed: parsed}, res, nil
 }
 
 // storeProbe stores the entries of a probed feed and records the fetch.

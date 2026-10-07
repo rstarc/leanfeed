@@ -27,7 +27,6 @@ Guiding principles, in priority order when they conflict:
 - Multiple users, accounts or permissions.
 - Mobile apps or sync APIs (Fever, Google Reader).
 - Search, filters, full-text extraction, retention or cleanup, notifications.
-- Feed discovery from a site's home page (the user pastes a feed URL).
 
 ### Target user
 
@@ -37,7 +36,7 @@ One technical user who self-hosts on a home server, NAS, Raspberry Pi or laptop,
 
 | ID | Requirement |
 | --- | --- |
-| F1 | Add a feed by URL, optionally into a folder. The first fetch runs immediately. |
+| F1 | Add a feed by URL, optionally into a folder. The first fetch runs immediately. A web page URL works too: leanfeed subscribes to the first feed the page links to. |
 | F2 | Remove a feed after confirmation; its directory is deleted. |
 | F3 | Rename a feed, move it between folders (one level of folders) and change its URL. A new URL is fetched first and is saved only if it is a feed; the feed keeps its ID and entries. |
 | F4 | Import subscriptions from OPML; export current subscriptions as OPML. |
@@ -326,6 +325,10 @@ A single scheduler goroutine wakes every minute, picks feeds whose `next_fetch_a
 3. Resolve relative URLs in the content against the entry link (or the feed's site URL).
 4. Sanitize with a strict `bluemonday` policy based on `UGCPolicy`: no scripts, styles, iframes, forms or event handlers. Links get `rel="noopener noreferrer"` and `target="_blank"`. Images stay but load directly from their origin.
 
+#### Feed discovery
+
+Adding a feed or changing its URL accepts a web page as well as a feed. When the response does not parse as a feed, leanfeed reads it as HTML and collects each `<link rel="alternate">` whose type is `application/rss+xml`, `application/atom+xml` or `application/feed+json`, resolved against the page's final URL. It tries the first five in document order and uses the first that parses as a feed. `application/json` is not used, because WordPress announces its REST API with that type on every page.
+
 #### New and changed entries
 
 - **New entry** (directory does not exist): create it atomically, `read: false`.
@@ -414,4 +417,4 @@ Resolved: feed directories use a slug plus hash; removing a feed deletes its dir
 
 ### Deferred features
 
-Search, filters and rules, full-text extraction, pruning of old entries (until then, entries are kept forever), auth, Fever or Google Reader API, feed discovery from site URLs, image proxy, multiple users.
+Search, filters and rules, full-text extraction, pruning of old entries (until then, entries are kept forever), auth, Fever or Google Reader API, image proxy, multiple users.

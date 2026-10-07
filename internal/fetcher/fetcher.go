@@ -85,7 +85,8 @@ type response struct {
 	notModified        bool
 	body               []byte
 	etag, lastModified string
-	permanentURL       string // final URL if every redirect was permanent
+	permanentURL       string   // final URL if every redirect was permanent
+	url                *url.URL // final URL after all redirects
 }
 
 // statusError is a non-2xx, non-304 HTTP response.
@@ -201,6 +202,7 @@ func (f *Fetcher) get(ctx context.Context, feedURL, etag, lastModified string) (
 	}
 	defer resp.Body.Close()
 
+	res.url = resp.Request.URL
 	if redirected && permanent {
 		res.permanentURL = resp.Request.URL.String()
 	}

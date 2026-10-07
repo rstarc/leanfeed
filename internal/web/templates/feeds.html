@@ -5,7 +5,7 @@
 
 <h2>Add a feed</h2>
 <form hx-post="/feeds" hx-target="#manage" hx-swap="outerHTML">
-<input name="url" type="url" placeholder="https://example.com/feed.xml" required size="40" aria-label="Feed URL">
+<input name="url" type="url" placeholder="https://example.com or its feed URL" required size="40" aria-label="Website or feed URL">
 <input name="folder" list="folders" placeholder="Folder (optional)" aria-label="Folder">
 <button type="submit">Add</button>
 </form>
