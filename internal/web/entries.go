@@ -93,6 +93,14 @@ type rowData struct {
 	OOB       bool
 }
 
+// feedHref returns the address of a feed's entries in the given view.
+func feedHref(view, feedID string) template.URL {
+	return listQuery{View: view, Feed: feedID, Page: 1}.URL()
+}
+
+// FeedHref returns the address of the entry's feed, in the current view.
+func (r rowData) FeedHref() template.URL { return feedHref(r.Query.View, r.FeedID) }
+
 // Href returns the entry's address, remembering the list it was opened from.
 func (r rowData) Href() template.URL {
 	return template.URL("/entries/" + url.PathEscape(r.ID) + "?" + r.Query.Encode())
@@ -112,6 +120,10 @@ type entryData struct {
 	Query     listQuery
 	OOB       bool
 }
+
+// FeedHref returns the address of the entry's feed, in the view the entry
+// was opened from.
+func (e entryData) FeedHref() template.URL { return feedHref(e.Query.View, e.FeedID) }
 
 type pageData struct {
 	Title   string

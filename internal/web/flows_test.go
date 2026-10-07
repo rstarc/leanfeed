@@ -276,3 +276,35 @@ func TestFlowMenuHighlightsTheCurrentPage(t *testing.T) {
 	p.click("#view-unread")
 	wantHighlighted(t, p, "view-unread")
 }
+
+func TestFlowFeedNameInRowOpensFeed(t *testing.T) {
+	f := newFixture(t)
+	p := f.open("/entries?view=all")
+	p.click("#entry-" + f.ids["News item"] + " a.feed-title")
+	wantText(t, p, "#list h1", "News")
+	wantTitles(t, p, "News item")
+	wantURL(t, p, "/entries?feed="+f.news.ID+"&view=all")
+	wantHighlighted(t, p, "feed-"+f.news.ID)
+}
+
+func TestFlowFeedNameInEntryOpensFeed(t *testing.T) {
+	f := newFixture(t)
+	p := f.open("/entries?view=unread")
+	p.click("#entry-" + f.ids["Blog new"] + " a.entry-title")
+	p.click("#entry .meta a.feed-title")
+	wantText(t, p, "#list h1", "Example Blog")
+	wantURL(t, p, "/entries?feed="+f.blog.ID+"&view=unread")
+	wantHighlighted(t, p, "feed-"+f.blog.ID)
+	if p.exists("#entry") {
+		t.Error("the entry stays open after opening its feed")
+	}
+}
+
+func TestEntryHasFullScreenButton(t *testing.T) {
+	f := newFixture(t)
+	p := f.open("/entries/" + f.ids["Blog new"])
+	b := p.find(`#entry button[data-entry-expand]`)
+	if attrOr(b, "aria-label", "") != "Full screen" || attrOr(b, "aria-pressed", "") != "false" {
+		t.Errorf("full screen button attributes = %v", b.Attr)
+	}
+}

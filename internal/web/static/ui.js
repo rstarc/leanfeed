@@ -109,4 +109,28 @@
       save();
     }
   });
+
+  // Full screen article. The state is a class on the article itself, so it
+  // ends when htmx replaces the article, and it is never stored.
+  const setExpanded = (entry, on) => {
+    entry.classList.toggle('expanded', on);
+    const button = entry.querySelector('[data-entry-expand]');
+    button.setAttribute('aria-pressed', String(on));
+    button.title = on ? 'Leave full screen (Esc)' : 'Full screen';
+    button.textContent = on ? '⤡' : '⤢';
+  };
+
+  document.addEventListener('click', e => {
+    const entry = e.target.closest?.('[data-entry-expand]')?.closest('#entry');
+    if (entry) {
+      setExpanded(entry, !entry.classList.contains('expanded'));
+    }
+  });
+
+  document.addEventListener('keydown', e => {
+    const entry = document.querySelector('#entry.expanded');
+    if (e.key === 'Escape' && entry) {
+      setExpanded(entry, false);
+    }
+  });
 })();

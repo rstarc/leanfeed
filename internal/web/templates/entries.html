@@ -18,7 +18,7 @@
 {{define "row"}}
 <li id="entry-{{.ID}}" class="row{{if not .Read}} unread{{end}}{{if .Starred}} starred{{end}}"{{if .OOB}} hx-swap-oob="true"{{end}}>
 <a class="entry-title" href="{{.Href}}" hx-get="{{.Href}}" hx-target="#entry-pane" hx-push-url="true">{{or .Title "(untitled)"}}</a>
-<span class="meta"><span class="feed-title">{{.FeedTitle}}</span> <time datetime="{{.PublishedAt.Format "2006-01-02T15:04:05Z07:00"}}">{{date .PublishedAt}}</time></span>
+<span class="meta">{{template "feed-link" .}} <time datetime="{{.PublishedAt.Format "2006-01-02T15:04:05Z07:00"}}">{{date .PublishedAt}}</time></span>
 <span class="row-actions">
 {{if .Read}}<button type="button" class="icon" title="Mark unread" hx-post="/entries/{{.ID}}/unread" hx-swap="none">○</button>{{else}}<button type="button" class="icon" title="Mark read" hx-post="/entries/{{.ID}}/read" hx-swap="none">●</button>{{end}}
 {{if .Starred}}<button type="button" class="icon star" title="Unstar" hx-post="/entries/{{.ID}}/unstar" hx-swap="none">★</button>{{else}}<button type="button" class="icon star" title="Star" hx-post="/entries/{{.ID}}/star" hx-swap="none">☆</button>{{end}}
@@ -26,14 +26,17 @@
 </li>
 {{end}}
 
+{{define "feed-link"}}<a class="feed-title" href="{{.FeedHref}}" hx-get="{{.FeedHref}}" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">{{.FeedTitle}}</a>{{end}}
+
 {{define "entry-pane"}}<section id="entry-pane" class="entry-pane">{{with .}}{{template "entry" .}}{{end}}</section>{{end}}
 
 {{define "entry"}}
 <article id="entry" class="entry">
+<button type="button" class="entry-expand" data-entry-expand aria-label="Full screen" aria-pressed="false" title="Full screen">⤢</button>
 <a class="back" href="{{.Query.URL}}">← Back to list</a>
 <header>
 <h1><a href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{or .Title "(untitled)"}}</a></h1>
-<p class="meta">{{.FeedTitle}}{{with .Author}} · {{.}}{{end}} · <time datetime="{{.PublishedAt.Format "2006-01-02T15:04:05Z07:00"}}">{{date .PublishedAt}}</time></p>
+<p class="meta">{{template "feed-link" .}}{{with .Author}} · {{.}}{{end}} · <time datetime="{{.PublishedAt.Format "2006-01-02T15:04:05Z07:00"}}">{{date .PublishedAt}}</time></p>
 {{template "entry-actions" .}}
 </header>
 <div class="content">{{.Content}}</div>

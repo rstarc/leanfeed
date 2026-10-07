@@ -175,3 +175,81 @@ func TestBrowserFeedsPageFillsTheWindow(t *testing.T) {
 		t.Errorf("with the menu hidden, feeds page spans %v to %v px, want 0 to 1280", manage.Left, manage.Right)
 	}
 }
+
+const expandButton = `#entry [data-entry-expand]`
+
+func (b *browser) wantNormalLayout() {
+	b.t.Helper()
+	for _, sel := range []string{"#sidebar", "#list", sidebarSplitter, listSplitter} {
+		if !b.visible(sel) {
+			b.t.Errorf("%s is hidden in the normal layout", sel)
+		}
+	}
+}
+
+func TestBrowserFullScreenArticle(t *testing.T) {
+	b := newBrowser(t, 1280, 800)
+	b.subscribe("rss2.xml")
+	b.open("/entries?view=all")
+	b.click("#list .row a.entry-title")
+	b.waitText("#entry h1", "Third post")
+
+	button := b.rect(expandButton)
+	pane := b.rect("#entry-pane")
+	top := eval[float64](b, `document.querySelector('#entry [data-entry-expand]').getBoundingClientRect().top`)
+	if pane.Right-button.Right > 40 || top > 40 {
+		t.Errorf("full screen button at right %v, top %v; want the top right corner of the entry (right edge %v)", button.Right, top, pane.Right)
+	}
+
+	expanded := func() {
+		t.Helper()
+		for _, sel := range []string{"#sidebar", "#list", sidebarSplitter, listSplitter, "button.menu-show"} {
+			if b.visible(sel) {
+				t.Errorf("%s is visible in full screen", sel)
+			}
+		}
+		if r := b.rect("#entry-pane"); !near(r.Left, 0) || !near(r.Right, 1280) {
+			t.Errorf("entry pane spans %v to %v px, want 0 to 1280", r.Left, r.Right)
+		}
+		if got := eval[string](b, `document.querySelector('#entry [data-entry-expand]').getAttribute('aria-pressed')`); got != "true" {
+			t.Errorf("aria-pressed = %q, want true", got)
+		}
+	}
+
+	b.click(expandButton)
+	expanded()
+	b.click(expandButton)
+	b.wantNormalLayout()
+
+	b.click(expandButton)
+	expanded()
+	b.do(chromedp.KeyEvent(kb.Escape))
+	b.wantNormalLayout()
+
+	// Full screen belongs to the open entry: opening its feed ends it, and
+	// the next entry opens in the normal layout.
+	b.click(expandButton)
+	b.click("#entry .meta a.feed-title")
+	b.waitText("#list h1", "Example RSS")
+	b.wantNormalLayout()
+	b.click("#list .row a.entry-title")
+	b.waitText("#entry h1", "Third post")
+	b.wantNormalLayout()
+}
+
+func TestBrowserFullScreenWithHiddenMenu(t *testing.T) {
+	b := newBrowser(t, 1280, 800)
+	b.subscribe("rss2.xml")
+	b.open("/entries?view=all")
+	b.click(`#sidebar [data-menu-toggle]`)
+	b.click("#list .row a.entry-title")
+	b.waitText("#entry h1", "Third post")
+	b.click(expandButton)
+	if b.visible("button.menu-show") || b.visible("#list") {
+		t.Error("the Show menu button or the list is visible in full screen")
+	}
+	b.click(expandButton)
+	if !b.visible("button.menu-show") || !b.visible("#list") || b.visible("#sidebar") {
+		t.Error("leaving full screen did not restore the layout with the hidden menu")
+	}
+}

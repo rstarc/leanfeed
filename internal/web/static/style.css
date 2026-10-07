@@ -208,7 +208,24 @@ input, select {
 
 /* Entry view */
 
+.entry-pane { position: relative; }
 .entry { max-width: 46rem; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
+.entry-expand {
+  position: absolute;
+  top: 0.75rem;
+  right: 1rem;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.3rem 0.45rem;
+}
+.entry header { padding-right: 1.5rem; }
+.meta .feed-title { color: inherit; }
+.meta .feed-title:hover { color: var(--accent); }
+
+/* Full screen article: only the entry pane remains. The state is a class
+   on the article, so it ends when another entry or a list replaces it. */
+.app:has(#entry.expanded) { grid-template-columns: 0 0 0 0 minmax(0, 1fr); }
+.app:has(#entry.expanded) :is(.sidebar, .splitter, .list, .menu-show) { display: none; }
 .entry .back { display: none; margin-bottom: 1rem; }
 .entry h1 { font-size: 1.6rem; line-height: 1.25; margin: 0 0 0.35rem; }
 .entry h1 a { color: var(--fg); }
