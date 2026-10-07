@@ -1,0 +1,55 @@
+{{define "manage"}}
+<section id="manage" class="manage">
+<h1>Feeds</h1>
+{{with .Notice}}<p id="notice" class="notice{{if $.NoticeError}} error{{end}}" role="status">{{.}}</p>{{end}}
+
+<h2>Add a feed</h2>
+<form hx-post="/feeds" hx-target="#manage" hx-swap="outerHTML">
+<input name="url" type="url" placeholder="https://example.com/feed.xml" required size="40" aria-label="Feed URL">
+<input name="folder" list="folders" placeholder="Folder (optional)" aria-label="Folder">
+<button type="submit">Add</button>
+</form>
+<datalist id="folders">{{range .Folders}}<option value="{{.}}">{{end}}</datalist>
+
+<h2>All feeds</h2>
+<form hx-post="/refresh" hx-target="#manage" hx-swap="outerHTML">
+<button type="submit">Refresh all</button>
+<a href="/opml" download>Export OPML</a>
+</form>
+<form hx-post="/opml" hx-encoding="multipart/form-data" hx-target="#manage" hx-swap="outerHTML">
+<input type="file" name="file" accept=".opml,.xml,text/xml,text/x-opml" required aria-label="OPML file">
+<button type="submit">Import OPML</button>
+</form>
+
+<h2>Subscriptions</h2>
+<table class="feed-table">
+<thead><tr><th>Feed</th><th>Status</th><th></th></tr></thead>
+<tbody>
+{{range .Feeds}}<tr id="manage-{{.ID}}">
+<td>
+<form hx-post="/feeds/{{.ID}}" hx-target="#manage" hx-swap="outerHTML">
+<input name="title" value="{{.Title}}" required aria-label="Title">
+<input name="folder" value="{{.Folder}}" list="folders" placeholder="No folder" aria-label="Folder">
+<button type="submit">Save</button>
+</form>
+<div class="url">{{.URL}}</div>
+</td>
+<td>{{template "feed-status" .}}</td>
+<td><button type="button" hx-delete="/feeds/{{.ID}}" hx-target="#manage" hx-swap="outerHTML" hx-confirm="Remove {{.Title}} and all its entries?">Remove</button></td>
+</tr>
+{{else}}<tr><td colspan="3">No feeds yet.</td></tr>
+{{end}}</tbody>
+</table>
+</section>
+{{end}}
+
+{{define "feed-status"}}
+{{- if eq .LastStatus "ok" -}}
+OK · fetched {{date .LastFetchedAt}}
+{{- else if eq .LastStatus "error" -}}
+<span class="status-error">Error ({{.ConsecutiveFailures}} {{if eq .ConsecutiveFailures 1}}failure{{else}}failures{{end}}): {{.LastError}}</span><br>
+Last try {{date .LastFetchedAt}} · next try {{date .NextFetchAt}}
+{{- else -}}
+Not fetched yet
+{{- end}}
+{{end}}

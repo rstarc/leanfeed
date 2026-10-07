@@ -65,6 +65,13 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /entries/{id}", s.handleEntry)
 	s.mux.HandleFunc("POST /entries/{id}/{action}", s.handleEntryAction)
 	s.mux.HandleFunc("POST /entries/mark-read", s.handleMarkAllRead)
+	s.mux.HandleFunc("GET /feeds", s.handleFeeds)
+	s.mux.HandleFunc("POST /feeds", s.handleAddFeed)
+	s.mux.HandleFunc("POST /feeds/{id}", s.handleUpdateFeed)
+	s.mux.HandleFunc("DELETE /feeds/{id}", s.handleRemoveFeed)
+	s.mux.HandleFunc("POST /refresh", s.handleRefresh)
+	s.mux.HandleFunc("GET /opml", s.handleExportOPML)
+	s.mux.HandleFunc("POST /opml", s.handleImportOPML)
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -86,6 +93,10 @@ type part struct {
 // render executes the parts into a buffer, then writes them, so a template
 // error never sends half a page.
 func (s *Server) render(w http.ResponseWriter, parts ...part) {
+	s.renderStatus(w, http.StatusOK, parts...)
+}
+
+func (s *Server) renderStatus(w http.ResponseWriter, status int, parts ...part) {
 	var buf bytes.Buffer
 	for _, p := range parts {
 		if err := s.tmpl.ExecuteTemplate(&buf, p.name, p.data); err != nil {
@@ -94,6 +105,7 @@ func (s *Server) render(w http.ResponseWriter, parts ...part) {
 		}
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
 	w.Write(buf.Bytes())
 }
 

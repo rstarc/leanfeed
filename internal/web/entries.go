@@ -118,6 +118,7 @@ type pageData struct {
 	Sidebar sidebarData
 	List    *listData
 	Entry   *entryData
+	Manage  *manageData
 }
 
 // listData loads one page of the list q describes.
