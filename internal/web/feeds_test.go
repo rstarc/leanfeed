@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -75,7 +76,7 @@ func TestFeedsPageShowsStatus(t *testing.T) {
 		t.Error("full feeds page has no sidebar")
 	}
 	blog := elementText(t, body, "manage-"+f.blog.ID)
-	for _, want := range []string{"https://example.com/feed.xml", "OK", "2026-10-07 09:30"} {
+	for _, want := range []string{"OK", "2026-10-07 09:30"} {
 		if !strings.Contains(blog, want) {
 			t.Errorf("blog row %q missing %q", blog, want)
 		}
@@ -86,9 +87,11 @@ func TestFeedsPageShowsStatus(t *testing.T) {
 			t.Errorf("failing feed row %q missing %q", news, want)
 		}
 	}
-	// Form values carry the editable title and folder.
-	if !strings.Contains(body, `value="Example Blog"`) || !strings.Contains(body, `value="Tech"`) {
-		t.Error("rename form does not show the current title and folder")
+	// Form values carry the editable title, folder and URL.
+	for _, want := range []string{`value="Example Blog"`, `value="Tech"`, `value="https://example.com/feed.xml"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("feed form does not contain %s", want)
+		}
 	}
 }
 
@@ -168,13 +171,19 @@ func TestAddFeedErrors(t *testing.T) {
 
 func TestUpdateFeed(t *testing.T) {
 	f := newFixture(t)
-	rec := f.doForm("POST", "/feeds/"+f.blog.ID, url.Values{"title": {" Renamed "}, "folder": {"Reading"}})
+	form := func(title, folder string) url.Values {
+		return url.Values{"title": {title}, "folder": {folder}, "url": {f.blog.URL}}
+	}
+	rec := f.doForm("POST", "/feeds/"+f.blog.ID, form(" Renamed ", "Reading"))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body)
 	}
 	got, _ := f.store.GetFeed(ctx, f.blog.ID)
 	if got.Title != "Renamed" || got.Folder != "Reading" {
 		t.Errorf("feed after update = %+v", got)
+	}
+	if len(f.fetcher.changed) != 0 {
+		t.Errorf("an unchanged URL was fetched: %v", f.fetcher.changed)
 	}
 	body := rec.Body.String()
 	if !strings.Contains(elementText(t, body, "notice"), "Saved Renamed") || !strings.Contains(body, `id="sidebar" hx-swap-oob`) {
@@ -185,16 +194,69 @@ func TestUpdateFeed(t *testing.T) {
 	}
 
 	// An empty folder moves the feed to the top level.
-	f.doForm("POST", "/feeds/"+f.blog.ID, url.Values{"title": {"Renamed"}, "folder": {""}})
+	f.doForm("POST", "/feeds/"+f.blog.ID, form("Renamed", ""))
 	if got, _ := f.store.GetFeed(ctx, f.blog.ID); got.Folder != "" {
 		t.Errorf("folder after clearing = %q", got.Folder)
 	}
 
-	if rec := f.doForm("POST", "/feeds/"+f.blog.ID, url.Values{"title": {"  "}}); rec.Code != http.StatusBadRequest {
+	if rec := f.doForm("POST", "/feeds/"+f.blog.ID, form("  ", "")); rec.Code != http.StatusBadRequest {
 		t.Errorf("empty title = %d, want 400", rec.Code)
 	}
-	if rec := f.doForm("POST", "/feeds/nope", url.Values{"title": {"x"}}); rec.Code != http.StatusNotFound {
+	if rec := f.doForm("POST", "/feeds/nope", form("x", "")); rec.Code != http.StatusNotFound {
 		t.Errorf("unknown feed = %d, want 404", rec.Code)
+	}
+}
+
+func TestUpdateFeedURL(t *testing.T) {
+	f := newFixture(t)
+	rec := f.doForm("POST", "/feeds/"+f.blog.ID, url.Values{
+		"title": {"Renamed"}, "folder": {"Tech"}, "url": {" https://moved.example/feed "},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body)
+	}
+	if want := []string{f.blog.ID + " https://moved.example/feed"}; !slices.Equal(f.fetcher.changed, want) {
+		t.Errorf("changed = %v, want %v", f.fetcher.changed, want)
+	}
+	got, _ := f.store.GetFeed(ctx, f.blog.ID)
+	if got.URL != "https://moved.example/feed" || got.Title != "Renamed" {
+		t.Errorf("feed after update = %+v", got)
+	}
+	if notice := elementText(t, rec.Body.String(), "notice"); !strings.Contains(notice, "Saved Renamed") {
+		t.Errorf("notice = %q", notice)
+	}
+	if byID(parseHTML(t, rec.Body.String()), "manage-"+f.blog.ID) == nil {
+		t.Error("manage page does not list the feed")
+	}
+}
+
+func TestUpdateFeedURLErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		url        string
+		fetchErr   error
+		wantStatus int
+		wantNotice string
+	}{
+		{"empty URL", "  ", nil, http.StatusBadRequest, "A feed needs a URL"},
+		{"not a feed", "https://x.example/", errors.New("not a valid feed: EOF"), http.StatusUnprocessableEntity, "not a valid feed: EOF"},
+		{"another feed's URL", "https://news.example/rss", fmt.Errorf("update: %w", store.ErrExists), http.StatusConflict, "already subscribed"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.fetcher.err = tt.fetchErr
+			rec := f.doForm("POST", "/feeds/"+f.blog.ID, url.Values{"title": {"Renamed"}, "folder": {""}, "url": {tt.url}})
+			if rec.Code != tt.wantStatus {
+				t.Errorf("status %d, want %d", rec.Code, tt.wantStatus)
+			}
+			if got := elementText(t, rec.Body.String(), "notice"); !strings.Contains(got, tt.wantNotice) {
+				t.Errorf("notice = %q, want it to contain %q", got, tt.wantNotice)
+			}
+			if got, _ := f.store.GetFeed(ctx, f.blog.ID); got != f.blog {
+				t.Errorf("failed update changed the feed to %+v", got)
+			}
+		})
 	}
 }
 

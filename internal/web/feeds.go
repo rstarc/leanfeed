@@ -85,16 +85,39 @@ func (s *Server) handleAddFeed(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleUpdateFeed renames a feed and moves it to a folder. An empty
-// folder moves it to the top level.
+// handleUpdateFeed renames a feed, moves it to a folder and changes its
+// URL. An empty folder moves it to the top level. A new URL is fetched
+// first; if it is not a feed, nothing changes.
 func (s *Server) handleUpdateFeed(w http.ResponseWriter, r *http.Request) {
 	title := strings.TrimSpace(r.FormValue("title"))
 	folder := strings.TrimSpace(r.FormValue("folder"))
-	if title == "" {
+	feedURL := strings.TrimSpace(r.FormValue("url"))
+	switch {
+	case title == "":
 		s.renderManage(w, r, http.StatusBadRequest, "A feed needs a title.", true)
 		return
+	case feedURL == "":
+		s.renderManage(w, r, http.StatusBadRequest, "A feed needs a URL.", true)
+		return
 	}
-	feed, err := s.store.UpdateFeed(r.Context(), r.PathValue("id"), store.FeedUpdate{Title: &title, Folder: &folder})
+	id := r.PathValue("id")
+	feed, err := s.store.GetFeed(r.Context(), id)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	if feedURL != feed.URL {
+		_, err := s.fetcher.ChangeURL(r.Context(), id, feedURL)
+		switch {
+		case errors.Is(err, store.ErrExists):
+			s.renderManage(w, r, http.StatusConflict, "You are already subscribed to "+feedURL+".", true)
+			return
+		case err != nil:
+			s.renderManage(w, r, http.StatusUnprocessableEntity, "Could not change the URL to "+feedURL+": "+err.Error(), true)
+			return
+		}
+	}
+	feed, err = s.store.UpdateFeed(r.Context(), id, store.FeedUpdate{Title: &title, Folder: &folder})
 	if err != nil {
 		s.fail(w, err)
 		return

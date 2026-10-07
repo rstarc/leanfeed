@@ -106,6 +106,68 @@ func TestSubscribeUntitledFeedUsesHost(t *testing.T) {
 	}
 }
 
+func TestChangeURL(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.Handle("/gone", http.NotFoundHandler())
+	mux.Handle("/feed.xml", serveFixture(t, "rss2.xml"))
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	s := newStore(t)
+	f := newFetcher(t, s)
+	old := addFeed(t, s, srv.URL+"/gone")
+	if err := f.Fetch(ctx, old.ID); err == nil {
+		t.Fatal("fetching the broken URL succeeded")
+	}
+
+	feed, err := f.ChangeURL(ctx, old.ID, srv.URL+"/feed.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if feed.ID != old.ID || feed.Title != old.Title || feed.URL != srv.URL+"/feed.xml" ||
+		feed.LastStatus != store.StatusOK || feed.ConsecutiveFailures != 0 || feed.SiteURL != "https://rss.example/" {
+		t.Errorf("feed after ChangeURL = %+v", feed)
+	}
+	if stored := getFeed(t, s, old.ID); stored != feed {
+		t.Errorf("stored feed = %+v, want %+v", stored, feed)
+	}
+	if es := entries(t, s, old.ID); len(es) != 3 {
+		t.Errorf("stored %d entries, want 3", len(es))
+	}
+}
+
+func TestChangeURLRejects(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.Handle("/page", serveFixture(t, "not-a-feed.html"))
+	mux.Handle("/other.xml", serveFixture(t, "atom.xml"))
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	tests := []struct {
+		name, url string
+		wantErr   func(error) bool
+	}{
+		{"HTML page", srv.URL + "/page", func(err error) bool { return err != nil && strings.Contains(err.Error(), "not a valid feed") }},
+		{"file URL", "file:///etc/passwd", func(err error) bool { return err != nil && strings.Contains(err.Error(), "only http and https") }},
+		{"another feed's URL", srv.URL + "/other.xml", func(err error) bool { return errors.Is(err, store.ErrExists) }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newStore(t)
+			feed := addFeed(t, s, "https://old.example/feed.xml")
+			if _, err := s.AddFeed(ctx, store.NewFeed{URL: srv.URL + "/other.xml", Title: "Other"}); err != nil {
+				t.Fatal(err)
+			}
+			_, err := newFetcher(t, s).ChangeURL(ctx, feed.ID, tt.url)
+			if !tt.wantErr(err) {
+				t.Errorf("ChangeURL error = %v", err)
+			}
+			if got := getFeed(t, s, feed.ID); got != feed {
+				t.Errorf("rejected ChangeURL changed the feed to %+v", got)
+			}
+		})
+	}
+}
+
 // eventually polls cond every 10 ms until it holds or 10 s pass.
 func eventually(t *testing.T, what string, cond func() bool) {
 	t.Helper()

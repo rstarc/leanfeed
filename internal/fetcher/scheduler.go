@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mmcdole/gofeed"
+
 	"leanfeed/internal/store"
 )
 
@@ -16,36 +18,72 @@ import (
 // falling back to the URL's host. After a permanent redirect the final URL
 // is stored.
 func (f *Fetcher) Subscribe(ctx context.Context, feedURL, folder string) (store.Feed, error) {
-	if err := store.CheckFeedURL(feedURL); err != nil {
-		return store.Feed{}, err
-	}
-	res, err := f.get(ctx, feedURL, "", "")
-	if err != nil {
-		return store.Feed{}, fmt.Errorf("fetching %s: %w", feedURL, err)
-	}
-	parsed, err := parse(res.body)
+	p, err := f.probe(ctx, feedURL)
 	if err != nil {
 		return store.Feed{}, err
 	}
-	if res.permanentURL != "" {
-		feedURL = res.permanentURL
-	}
-	title := strings.TrimSpace(parsed.Title)
+	title := strings.TrimSpace(p.parsed.Title)
 	if title == "" {
-		u, _ := url.Parse(feedURL)
+		u, _ := url.Parse(p.url)
 		title = u.Host
 	}
 	feed, err := f.store.AddFeed(ctx, store.NewFeed{
-		URL: feedURL, Title: title, SiteURL: siteURL(parsed, feedURL), Folder: folder,
+		URL: p.url, Title: title, SiteURL: siteURL(p.parsed, p.url), Folder: folder,
 	})
 	if err != nil {
 		return store.Feed{}, err
 	}
-	if _, err := f.store.UpsertEntries(ctx, feed.ID, incomingEntries(parsed, feedURL)); err != nil {
+	return f.storeProbe(ctx, feed, p)
+}
+
+// ChangeURL points a feed at a new URL. Like Subscribe, it fetches the URL
+// first and leaves the feed unchanged unless the URL is a feed. The feed
+// keeps its ID, title, folder and entries.
+func (f *Fetcher) ChangeURL(ctx context.Context, id, feedURL string) (store.Feed, error) {
+	p, err := f.probe(ctx, feedURL)
+	if err != nil {
 		return store.Feed{}, err
 	}
-	res.permanentURL = "" // already stored as the feed URL
-	if err := f.store.RecordFetch(ctx, feed.ID, f.result(feed, res, parsed, nil)); err != nil {
+	feed, err := f.store.UpdateFeed(ctx, id, store.FeedUpdate{URL: &p.url})
+	if err != nil {
+		return store.Feed{}, err
+	}
+	return f.storeProbe(ctx, feed, p)
+}
+
+// probed is a URL that was fetched and parsed as a feed.
+type probed struct {
+	url    string // the URL to store: the redirect target after a permanent redirect
+	res    response
+	parsed *gofeed.Feed
+}
+
+// probe fetches and parses feedURL without changing the store.
+func (f *Fetcher) probe(ctx context.Context, feedURL string) (probed, error) {
+	if err := store.CheckFeedURL(feedURL); err != nil {
+		return probed{}, err
+	}
+	res, err := f.get(ctx, feedURL, "", "")
+	if err != nil {
+		return probed{}, fmt.Errorf("fetching %s: %w", feedURL, err)
+	}
+	parsed, err := parse(res.body)
+	if err != nil {
+		return probed{}, err
+	}
+	if res.permanentURL != "" {
+		feedURL = res.permanentURL
+		res.permanentURL = "" // stored as the feed URL, not as a redirect
+	}
+	return probed{url: feedURL, res: res, parsed: parsed}, nil
+}
+
+// storeProbe stores the entries of a probed feed and records the fetch.
+func (f *Fetcher) storeProbe(ctx context.Context, feed store.Feed, p probed) (store.Feed, error) {
+	if _, err := f.store.UpsertEntries(ctx, feed.ID, incomingEntries(p.parsed, p.url)); err != nil {
+		return store.Feed{}, err
+	}
+	if err := f.store.RecordFetch(ctx, feed.ID, f.result(feed, p.res, p.parsed, nil)); err != nil {
 		return store.Feed{}, err
 	}
 	return f.store.GetFeed(ctx, feed.ID)

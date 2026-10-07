@@ -23,11 +23,13 @@ var (
 	quietLog = slog.New(slog.NewTextHandler(io.Discard, nil))
 )
 
-// fakeFetcher stands in for the network: Subscribe adds the feed directly.
+// fakeFetcher stands in for the network: Subscribe and ChangeURL change
+// the store directly.
 type fakeFetcher struct {
 	store      store.Store
 	refreshed  int
 	subscribed []string
+	changed    []string // "<feed ID> <URL>"
 	err        error
 }
 
@@ -37,6 +39,14 @@ func (f *fakeFetcher) Subscribe(ctx context.Context, url, folder string) (store.
 	}
 	f.subscribed = append(f.subscribed, url)
 	return f.store.AddFeed(ctx, store.NewFeed{URL: url, Title: "Subscribed " + url, Folder: folder})
+}
+
+func (f *fakeFetcher) ChangeURL(ctx context.Context, id, url string) (store.Feed, error) {
+	if f.err != nil {
+		return store.Feed{}, f.err
+	}
+	f.changed = append(f.changed, id+" "+url)
+	return f.store.UpdateFeed(ctx, id, store.FeedUpdate{URL: &url})
 }
 
 func (f *fakeFetcher) RefreshAll(ctx context.Context) error {

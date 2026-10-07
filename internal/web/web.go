@@ -30,6 +30,7 @@ const defaultPageSize = 50
 // Fetcher is the part of the fetcher the web UI uses.
 type Fetcher interface {
 	Subscribe(ctx context.Context, url, folder string) (store.Feed, error)
+	ChangeURL(ctx context.Context, id, url string) (store.Feed, error)
 	RefreshAll(ctx context.Context) error
 }
 

@@ -39,7 +39,7 @@ One technical user who self-hosts on a home server, NAS, Raspberry Pi or laptop,
 | --- | --- |
 | F1 | Add a feed by URL, optionally into a folder. The first fetch runs immediately. |
 | F2 | Remove a feed after confirmation; its directory is deleted. |
-| F3 | Rename a feed and move it between folders (one level of folders). |
+| F3 | Rename a feed, move it between folders (one level of folders) and change its URL. A new URL is fetched first and is saved only if it is a feed; the feed keeps its ID and entries. |
 | F4 | Import subscriptions from OPML; export current subscriptions as OPML. |
 | F5 | Fetch all feeds on a schedule (default every 30 minutes), plus a manual "refresh all" action. |
 | F6 | Show a sidebar of folders and feeds with unread counts. |
@@ -352,7 +352,7 @@ Styling is one small hand-written CSS file with system fonts and light and dark 
 | POST | `/entries/mark-read` | Mark all in the current view read (same query params) |
 | GET | `/feeds` | Manage feeds: list, status, last error |
 | POST | `/feeds` | Add feed (`url`, optional `folder`) |
-| POST | `/feeds/{id}` | Rename or move feed |
+| POST | `/feeds/{id}` | Rename or move feed, or change its URL |
 | DELETE | `/feeds/{id}` | Remove feed (after confirm) |
 | POST | `/refresh` | Fetch all feeds now |
 | GET | `/opml` | Download subscriptions as OPML |

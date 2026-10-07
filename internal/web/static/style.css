@@ -248,8 +248,7 @@ input, select {
 .feed-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .feed-table th, .feed-table td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 .feed-table .status-error { color: var(--error); }
-.feed-table .url { color: var(--muted); font-size: 0.8rem; word-break: break-all; }
-.feed-table input[name="title"] { width: 100%; min-width: 10rem; }
+.feed-table input[name="title"], .feed-table input[name="url"] { width: 100%; min-width: 10rem; }
 .notice { padding: 0.5rem 0.75rem; border-radius: 4px; background: var(--bg-side); border: 1px solid var(--line); }
 .notice.error { border-color: var(--error); color: var(--error); }
 

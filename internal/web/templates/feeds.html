@@ -30,9 +30,9 @@
 <form hx-post="/feeds/{{.ID}}" hx-target="#manage" hx-swap="outerHTML">
 <input name="title" value="{{.Title}}" required aria-label="Title">
 <input name="folder" value="{{.Folder}}" list="folders" placeholder="No folder" aria-label="Folder">
+<input name="url" type="url" value="{{.URL}}" required aria-label="Feed URL">
 <button type="submit">Save</button>
 </form>
-<div class="url">{{.URL}}</div>
 </td>
 <td>{{template "feed-status" .}}</td>
 <td><button type="button" hx-delete="/feeds/{{.ID}}" hx-target="#manage" hx-swap="outerHTML" hx-confirm="Remove {{.Title}} and all its entries?">Remove</button></td>

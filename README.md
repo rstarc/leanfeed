@@ -11,7 +11,7 @@ make            # run all tests, then build bin/leanfeed
 bin/leanfeed serve
 ```
 
-Open <http://127.0.0.1:8080>. Choose **Manage feeds** to add a feed by its URL or to import an OPML file from another reader.
+Open <http://127.0.0.1:8080>. Choose **Manage feeds** to add a feed by its URL or to import an OPML file from another reader. On the same page you can rename a feed, move it to a folder or change its URL. leanfeed fetches a new URL first and saves it only if it is a feed. The feed keeps its entries.
 
 Drag the line between two columns to change their width; double-click it to reset it. The « button hides the menu, and » shows it again. Your browser remembers these settings. The ⤢ button in the top right corner of an article shows it across the whole window; press it again or Esc to return. Click a feed name to see that feed's entries.
 
