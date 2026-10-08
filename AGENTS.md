@@ -16,7 +16,7 @@ When goals conflict, they rank in this order (from `design.md`):
 
 - `make` — runs all tests, then builds `bin/leanfeed`
 - `make build` — builds the static binary `bin/leanfeed`, stamping in the version from `git describe`
-- `make test` — runs all tests, including the slow checks with 10,000 entries and 300 feeds; must pass before a change is done
+- `make test` — runs `go vet`, then all tests with the race detector, including the slow checks with 10,000 entries and 300 feeds; must pass before a change is done
 - `make test-short` — runs the tests without the slow checks and the browser tests; use it while iterating
 - `make test-ui` — runs only the UI flow tests and the headless-browser tests
 - `make clean` — removes `bin/`

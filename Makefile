@@ -1,7 +1,7 @@
 # Build and test leanfeed.
 #   make            run all tests, then build bin/leanfeed
 #   make build      build bin/leanfeed
-#   make test       run all tests, including the slow 10,000-entry and 300-feed checks
+#   make test       run go vet, then all tests with the race detector, including the slow checks
 #   make test-short run the tests without the slow checks and the browser tests
 #   make test-ui    run the UI flow tests and the browser tests (needs Chrome; see flake.nix)
 #   make clean      remove bin/
@@ -17,8 +17,10 @@ all: test build
 build:
 	CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o $(BIN) ./cmd/leanfeed
 
+# go test runs only a subset of vet's checks, so the explicit pass is not redundant.
 test:
-	go test ./...
+	go vet ./...
+	go test -race ./...
 
 test-short:
 	go test -short ./...
