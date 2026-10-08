@@ -31,7 +31,7 @@
 {{define "entry-pane"}}<section id="entry-pane" class="entry-pane">{{with .}}{{template "entry" .}}{{end}}</section>{{end}}
 
 {{define "entry"}}
-<article id="entry" class="entry">
+<article id="entry" class="entry" data-entry-id="{{.ID}}">
 <button type="button" class="entry-expand" data-entry-expand aria-label="Full screen" aria-pressed="false" title="Full screen">⤢</button>
 <a class="back" href="{{.Query.URL}}">← Back to list</a>
 <header>

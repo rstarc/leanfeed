@@ -385,3 +385,45 @@ func TestBrowserBackButtonRestoresList(t *testing.T) {
 		t.Errorf("rows after Back = %d, want 3", got)
 	}
 }
+
+// openRows returns the ids of the rows marked as showing the open entry.
+func (b *browser) openRows() []string {
+	b.t.Helper()
+	return eval[[]string](b, `[...document.querySelectorAll('#list .row[aria-current]')].map(row => row.id)`)
+}
+
+func (b *browser) wantOpenRow(id string) {
+	b.t.Helper()
+	if got := b.openRows(); len(got) != 1 || got[0] != id {
+		b.t.Errorf("rows marked open = %q, want only %q", got, id)
+	}
+}
+
+func TestBrowserListMarksOpenEntry(t *testing.T) {
+	b := newBrowser(t, 1280, 800)
+	b.subscribe("rss2.xml")
+	b.open("/entries?view=all")
+	if got := b.openRows(); len(got) != 0 {
+		t.Errorf("rows marked open before opening an entry = %q", got)
+	}
+	rows := eval[[]string](b, `[...document.querySelectorAll('#list .row')].map(row => row.id)`)
+
+	b.click("#" + rows[1] + " a.entry-title")
+	b.waitText("#entry h1", "Second post")
+	b.wantOpenRow(rows[1])
+	if bg := eval[string](b, `getComputedStyle(document.querySelector('#list .row[aria-current]')).backgroundColor`); bg == "rgba(0, 0, 0, 0)" {
+		t.Error("the open entry's row has no background")
+	}
+
+	b.click("#" + rows[0] + " a.entry-title")
+	b.waitText("#entry h1", "Third post")
+	b.wantOpenRow(rows[0])
+
+	// Starring from the row replaces the row with an out-of-band swap.
+	b.click("#" + rows[0] + " button.star")
+	b.waitUntil("the star", fmt.Sprintf(`document.getElementById(%s).classList.contains('starred')`, js(rows[0])))
+	b.wantOpenRow(rows[0])
+
+	b.reload()
+	b.wantOpenRow(rows[0])
+}

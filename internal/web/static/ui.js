@@ -133,4 +133,19 @@
       setExpanded(entry, false);
     }
   });
+
+  // The list marks the row of the open entry. htmx swaps the entry and the
+  // rows separately, so the mark is set again after every swap.
+  const markOpenEntry = () => {
+    const id = document.getElementById('entry')?.dataset.entryId;
+    for (const row of document.querySelectorAll('#list .row')) {
+      if (id && row.id === `entry-${id}`) {
+        row.setAttribute('aria-current', 'true');
+      } else {
+        row.removeAttribute('aria-current');
+      }
+    }
+  };
+  document.addEventListener('DOMContentLoaded', markOpenEntry);
+  document.addEventListener('htmx:afterSettle', markOpenEntry);
 })();

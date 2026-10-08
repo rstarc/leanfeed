@@ -11,6 +11,7 @@
   --accent: #2557c4;
   --star: #c98a00;
   --error: #c0392b;
+  --fg-current: var(--fg); /* the current menu item and the open entry's row */
   --font-text: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-title: var(--font-text);
   --font-heading: var(--font-text);
@@ -165,7 +166,7 @@ input, select {
   text-overflow: ellipsis;
 }
 .sidebar li > a:hover { background: var(--bg-hover); text-decoration: none; }
-.sidebar a[aria-current="page"] { background: var(--bg-hover); font-weight: 600; }
+.sidebar a[aria-current="page"] { background: var(--bg-hover); font-weight: 600; color: var(--fg-current); }
 .sidebar .folder > a { font-weight: 600; margin-top: 0.4rem; }
 .sidebar .feed { position: relative; }
 .feed-error {
@@ -205,7 +206,8 @@ input, select {
   padding: 0.55rem 1rem;
   border-bottom: 1px solid var(--line);
 }
-.row:hover { background: var(--bg-hover); }
+.row:hover, .row[aria-current] { background: var(--bg-hover); }
+.row[aria-current] .entry-title { color: var(--fg-current); }
 .row .entry-title { color: var(--muted); grid-column: 1; }
 .row.unread .entry-title { color: var(--fg); font-weight: 600; }
 .row .meta { grid-column: 1; color: var(--muted); font-size: 0.8rem; }
