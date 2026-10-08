@@ -17,7 +17,7 @@ func TestSidebarSections(t *testing.T) {
 	if got := p.texts(`#sidebar [aria-labelledby="nav-feeds"] a`); !slices.Equal(got, []string{"Tech 1", "Example Blog 1", "News 1"}) {
 		t.Errorf("feeds section links = %q", got)
 	}
-	if got := p.texts(`#sidebar [aria-labelledby="nav-config"] a`); !slices.Equal(got, []string{"Manage feeds", "Export OPML"}) {
+	if got := p.texts(`#sidebar [aria-labelledby="nav-config"] a`); !slices.Equal(got, []string{"Manage feeds", "Appearance", "Export OPML"}) {
 		t.Errorf("configuration section links = %q", got)
 	}
 }
@@ -31,6 +31,7 @@ func TestSidebarHighlightsCurrentPage(t *testing.T) {
 		{"/entries?view=unread", []string{"view-unread"}},
 		{"/entries?view=all&folder=Tech", []string{"folder-Tech"}},
 		{"/feeds", []string{"/feeds"}},
+		{"/appearance", []string{"/appearance"}},
 	}
 	for _, tt := range tests {
 		p := f.open(tt.path)
@@ -57,7 +58,7 @@ func TestSidebarHighlightsCurrentPage(t *testing.T) {
 
 func TestLayoutHasResizeAndMenuControls(t *testing.T) {
 	f := newFixture(t)
-	for _, path := range []string{"/entries", "/feeds"} {
+	for _, path := range []string{"/entries", "/feeds", "/appearance"} {
 		p := f.open(path)
 		for _, sel := range []string{
 			`.splitter[data-resize="sidebar"][role="separator"][tabindex="0"]`,
@@ -74,5 +75,18 @@ func TestLayoutHasResizeAndMenuControls(t *testing.T) {
 	rec := f.do("GET", "/static/ui.js", false)
 	if rec.Code != 200 || rec.Body.Len() == 0 {
 		t.Errorf("GET /static/ui.js = %d (%d bytes)", rec.Code, rec.Body.Len())
+	}
+}
+
+func TestBundledFontsAreServed(t *testing.T) {
+	f := newFixture(t)
+	for _, path := range []string{"/static/fonts/lora.woff2", "/static/fonts/lora-italic.woff2", "/static/fonts/fira-code.woff2"} {
+		rec := f.do("GET", path, false)
+		if rec.Code != 200 || rec.Body.Len() == 0 {
+			t.Errorf("GET %s = %d (%d bytes)", path, rec.Code, rec.Body.Len())
+		}
+		if got := rec.Header().Get("Content-Type"); got != "font/woff2" {
+			t.Errorf("GET %s: Content-Type = %q, want font/woff2", path, got)
+		}
 	}
 }

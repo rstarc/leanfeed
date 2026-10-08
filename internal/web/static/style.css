@@ -1,6 +1,37 @@
-/* leanfeed: one small stylesheet, system fonts, light and dark themes. */
+/* leanfeed: one small stylesheet. Each theme has a light and a dark
+   version that follows prefers-color-scheme. ui.js sets data-theme on
+   <html>; the Appearance page also sets it on each theme's preview, so
+   theme rules match [data-theme] on any element. */
+
+/* Bundled fonts load only when a theme uses them. */
+@font-face {
+  font-family: Lora;
+  src: url("fonts/lora.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: Lora;
+  src: url("fonts/lora-italic.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Fira Code";
+  src: url("fonts/fira-code.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
+  color-scheme: light dark;
+}
+
+/* Default theme: system fonts. Titles and headings use the text font. */
+:root, [data-theme="default"] {
   color-scheme: light dark;
   --bg: #fdfdfc;
   --bg-side: #f3f3f1;
@@ -19,7 +50,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root, [data-theme="default"] {
     --bg: #18181a;
     --bg-side: #1f1f22;
     --bg-hover: #2a2a2e;
@@ -29,6 +60,39 @@
     --accent: #7ea6ff;
     --star: #f0b429;
     --error: #ff6b5b;
+  }
+}
+
+/* Sepia theme: Lora and Fira Code on warm paper colors. It comes after the
+   default theme so that it wins on <html>, which :root also matches. */
+[data-theme="sepia"] {
+  --bg: #f4ecd8;
+  --bg-side: #ebe0c6;
+  --bg-hover: #e2d4b4;
+  --fg: #3b2f22;
+  --muted: #6a5641;
+  --line: #d6c6a3;
+  --accent: #46604a;
+  --star: #98650a;
+  --error: #a3271b;
+  --fg-current: var(--accent);
+  --font-text: Lora, Georgia, serif;
+  --font-title: var(--font-text);
+  --font-heading: var(--font-text);
+  --font-code: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="sepia"] {
+    --bg: #221c15;
+    --bg-side: #2a231a;
+    --bg-hover: #372d21;
+    --fg: #ead9bc;
+    --muted: #b09a7c;
+    --line: #45392a;
+    --accent: #a3b89a;
+    --star: #e0b04a;
+    --error: #ff8a73;
   }
 }
 
@@ -44,7 +108,7 @@ body {
 
 /* Each font role has its own property, so a theme can set them apart. */
 .brand, .row .entry-title, .entry h1 { font-family: var(--font-title); }
-.nav-section h2, .list-header h1, .manage :is(h1, h2), .content :is(h1, h2, h3, h4, h5, h6) {
+.nav-section h2, .list-header h1, .page :is(h1, h2), .content :is(h1, h2, h3, h4, h5, h6) {
   font-family: var(--font-heading);
 }
 
@@ -94,14 +158,14 @@ input, select {
 
 .main { display: contents; }
 
-.sidebar, .list, .entry-pane, .manage { overflow-y: auto; grid-row: 1; min-width: 0; }
+.sidebar, .list, .entry-pane, .page { overflow-y: auto; grid-row: 1; min-width: 0; }
 .sidebar { grid-column: 1; }
 .splitter[data-resize="sidebar"] { grid-column: 2; grid-row: 1; }
 .list { grid-column: 3; }
 .splitter[data-resize="list"] { grid-column: 4; grid-row: 1; }
 .entry-pane { grid-column: 5; }
-.manage { grid-column: 3 / span 3; }
-.app:has(.manage) .splitter[data-resize="list"] { display: none; }
+.page { grid-column: 3 / span 3; }
+.app:has(.page) .splitter[data-resize="list"] { display: none; }
 
 /* A splitter shows a one-pixel line and highlights while in use. */
 .splitter {
@@ -129,7 +193,7 @@ input, select {
   .menu-hidden .app { grid-template-columns: 0 0 var(--list-width, 26rem) 5px minmax(0, 1fr); }
   .menu-hidden .sidebar, .menu-hidden .splitter[data-resize="sidebar"] { display: none; }
   .menu-hidden .menu-show { display: block; }
-  .menu-hidden .list-header, .menu-hidden .manage { padding-left: 2.5rem; }
+  .menu-hidden .list-header, .menu-hidden .page { padding-left: 2.5rem; }
 }
 
 /* Sidebar */
@@ -249,11 +313,14 @@ input, select {
 .content table { border-collapse: collapse; }
 .content td, .content th { border: 1px solid var(--line); padding: 0.25rem 0.5rem; }
 
+/* Pages that fill the list and entry columns: feeds and appearance */
+
+.page { padding: 1.5rem 2rem 4rem; }
+.page h1 { margin-top: 0; font-size: 1.4rem; }
+.page h2 { font-size: 1.1rem; margin-top: 2rem; }
+
 /* Feed management page */
 
-.manage { padding: 1.5rem 2rem 4rem; }
-.manage h1 { margin-top: 0; font-size: 1.4rem; }
-.manage h2 { font-size: 1.1rem; margin-top: 2rem; }
 .manage form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .feed-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .feed-table th, .feed-table td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -261,6 +328,29 @@ input, select {
 .feed-table input[name="title"], .feed-table input[name="url"] { width: 100%; min-width: 10rem; }
 .notice { padding: 0.5rem 0.75rem; border-radius: 4px; background: var(--bg-side); border: 1px solid var(--line); }
 .notice.error { border-color: var(--error); color: var(--error); }
+
+/* Appearance page: each choice previews its theme. */
+
+.themes { display: grid; gap: 0.75rem; max-width: 36rem; margin: 0; padding: 0; border: none; }
+.themes legend { font-weight: 600; margin-bottom: 0.5rem; padding: 0; }
+.theme {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.1rem 0.6rem;
+  align-items: baseline;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-text);
+  cursor: pointer;
+}
+.theme:has(:checked) { outline: 2px solid var(--accent); outline-offset: -1px; }
+.theme input { accent-color: var(--accent); }
+.theme-name { font-family: var(--font-title); font-weight: 600; }
+.theme-description { grid-column: 2; color: var(--muted); font-size: 0.9rem; }
+.hint { color: var(--muted); font-size: 0.9rem; }
 
 /* Narrow screens: sidebar, list and entry stack as separate pages. */
 
@@ -272,5 +362,5 @@ input, select {
   .main:has(#entry) .list { display: none; }
   .entry { padding: 1rem; }
   .entry .back { display: inline-block; }
-  .manage { padding: 1rem; }
+  .page { padding: 1rem; }
 }

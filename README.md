@@ -15,6 +15,8 @@ Open <http://127.0.0.1:8080>. Choose **Manage feeds** to add a feed or to import
 
 Drag the line between two columns to change their width; double-click it to reset it. The « button hides the menu, and » shows it again. Your browser remembers these settings. The ⤢ button in the top right corner of an article shows it across the whole window; press it again or Esc to return. Click a feed name to see that feed's entries. The list highlights the entry that is open.
 
+Choose **Appearance** to pick a theme. **Default** uses your system's fonts. **Sepia** uses the Lora font for text and Fira Code for code, on warm paper colors. Both themes follow your system's light or dark mode. Your browser remembers the theme, so each browser can use a different one.
+
 Other `make` targets:
 
 | Target | What it does |
@@ -166,5 +168,7 @@ Code layout:
 | `internal/store/filestore` | The file-based `Store` |
 | `internal/fetcher` | Scheduling, HTTP, parsing and sanitizing |
 | `internal/web` | Handlers, templates and static files |
+
+leanfeed embeds the Lora and Fira Code fonts. Both are licensed under the SIL Open Font License; the license texts are in `internal/web/static/fonts`.
 
 The web server and the fetcher use only the `store.Store` interface. A database-backed store can replace `filestore` if it passes `storetest.Run`.

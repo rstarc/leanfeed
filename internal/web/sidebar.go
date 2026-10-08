@@ -33,11 +33,12 @@ type folderItem struct {
 }
 
 type sidebarData struct {
-	Views   []viewItem
-	Folders []folderItem
-	Feeds   []feedItem // not in a folder
-	Manage  bool       // the feed management page is shown
-	OOB     bool
+	Views      []viewItem
+	Folders    []folderItem
+	Feeds      []feedItem // not in a folder
+	Manage     bool       // the feed management page is shown
+	Appearance bool       // the appearance page is shown
+	OOB        bool
 }
 
 // sidebarData lists views, folders and feeds with unread counts. current

@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"mime"
 	"net/http"
 	"net/url"
 	"time"
@@ -26,6 +27,12 @@ var templateFS embed.FS
 var staticFS embed.FS
 
 const defaultPageSize = 50
+
+func init() {
+	// Go's own table has no entry for woff2, and the system tables it
+	// falls back to differ between machines.
+	_ = mime.AddExtensionType(".woff2", "font/woff2") // fails only for a malformed type
+}
 
 // Fetcher is the part of the fetcher the web UI uses.
 type Fetcher interface {
@@ -73,6 +80,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /feeds", s.handleAddFeed)
 	s.mux.HandleFunc("POST /feeds/{id}", s.handleUpdateFeed)
 	s.mux.HandleFunc("DELETE /feeds/{id}", s.handleRemoveFeed)
+	s.mux.HandleFunc("GET /appearance", s.handleAppearance)
 	s.mux.HandleFunc("POST /refresh", s.handleRefresh)
 	s.mux.HandleFunc("GET /opml", s.handleExportOPML)
 	s.mux.HandleFunc("POST /opml", s.handleImportOPML)
@@ -90,9 +98,9 @@ func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.WriteString(w, "ok\n")
 }
 
-// contentSecurityPolicy allows scripts and styles only from leanfeed
-// itself. Images and media in feed content load from their origin.
-const contentSecurityPolicy = "default-src 'none'; script-src 'self'; style-src 'self'; " +
+// contentSecurityPolicy allows scripts, styles and fonts only from
+// leanfeed itself. Images and media in feed content load from their origin.
+const contentSecurityPolicy = "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; " +
 	"img-src 'self' http: https:; media-src http: https:; connect-src 'self'; " +
 	"form-action 'self'; base-uri 'none'; frame-ancestors 'none'"
 

@@ -1,7 +1,7 @@
-// Resizable columns and a menu that can be hidden. The widths and the
-// hidden state are kept per browser in localStorage. This file loads in
-// <head> without defer, so a stored layout applies before the page is
-// first drawn and never flashes. Handlers listen on the document, so they
+// Resizable columns, a menu that can be hidden, and the theme. The widths,
+// the hidden state and the theme are kept per browser in localStorage.
+// This file loads in <head> without defer, so a stored layout and theme
+// apply before the page is first drawn and never flash. Handlers listen on the document, so they
 // keep working when htmx replaces parts of the page.
 (() => {
   'use strict';
@@ -39,6 +39,36 @@
     root.classList.toggle('menu-hidden', Boolean(state.menuHidden));
   };
   apply();
+
+  // The theme. style.css holds the themes; the Appearance page offers them.
+  const themeKey = 'leanfeed.theme';
+  const loadTheme = () => {
+    try {
+      return localStorage.getItem(themeKey) || 'default';
+    } catch {
+      return 'default';
+    }
+  };
+  root.dataset.theme = loadTheme();
+
+  // The server cannot know the stored theme, so the Appearance page shows
+  // the default as chosen until this corrects it.
+  document.addEventListener('DOMContentLoaded', () => {
+    for (const input of document.querySelectorAll('[data-theme-choice]')) {
+      input.checked = input.value === root.dataset.theme;
+    }
+  });
+
+  document.addEventListener('change', e => {
+    if (e.target.matches?.('[data-theme-choice]')) {
+      root.dataset.theme = e.target.value;
+      try {
+        localStorage.setItem(themeKey, e.target.value);
+      } catch {
+        // Storage can be unavailable; the theme then lasts until the next page.
+      }
+    }
+  });
 
   const pane = name => document.getElementById(name === 'sidebar' ? 'sidebar' : 'list');
   const width = name => pane(name)?.getBoundingClientRect().width || 0;

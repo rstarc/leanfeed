@@ -1,0 +1,14 @@
+{{define "appearance"}}
+<section id="appearance" class="page appearance">
+<h1>Appearance</h1>
+<fieldset class="themes">
+<legend>Theme</legend>
+{{range .Themes}}<label class="theme" data-theme="{{.Theme}}">
+<input type="radio" name="theme" value="{{.Theme}}" data-theme-choice{{if .IsDefault}} checked{{end}}>
+<span class="theme-name">{{.Name}}</span>
+<span class="theme-description">{{.Description}}</span>
+</label>
+{{end}}</fieldset>
+<p class="hint">Your browser remembers the theme. Both themes follow your system's light or dark mode.</p>
+</section>
+{{end}}

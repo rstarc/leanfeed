@@ -126,11 +126,12 @@ type entryData struct {
 func (e entryData) FeedHref() template.URL { return feedHref(e.Query.View, e.FeedID) }
 
 type pageData struct {
-	Title   string
-	Sidebar sidebarData
-	List    *listData
-	Entry   *entryData
-	Manage  *manageData
+	Title      string
+	Sidebar    sidebarData
+	List       *listData
+	Entry      *entryData
+	Manage     *manageData
+	Appearance *appearanceData
 }
 
 // listData loads one page of the list q describes.

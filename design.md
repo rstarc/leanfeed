@@ -100,7 +100,7 @@ leanfeed is one Go process with three parts around a single store: a fetcher tha
 The browser and feed sites never touch the data directory; every read and write passes through the store.
 
 - **Language:** Go 1.22 or newer (for the standard `net/http` routing patterns).
-- **Dependencies:** `github.com/mmcdole/gofeed` (RSS, Atom, JSON Feed parsing), `github.com/microcosm-cc/bluemonday` (HTML sanitizing), htmx (one vendored, embedded JS file). Everything else is the standard library.
+- **Dependencies:** `github.com/mmcdole/gofeed` (RSS, Atom, JSON Feed parsing), `github.com/microcosm-cc/bluemonday` (HTML sanitizing), htmx (one vendored, embedded JS file), and the Lora and Fira Code fonts (embedded woff2 files under the SIL Open Font License). Everything else is the standard library.
 - **No:** database, ORM, web framework, CSS framework build step, JavaScript bundler.
 
 ### Project layout
@@ -114,7 +114,7 @@ leanfeed/
   internal/store/filestore/ file implementation: files, atomic writes, index
   internal/fetcher/         scheduler, HTTP fetch, parse, sanitize
   internal/opml/            OPML read and write
-  internal/web/             handlers, templates/, static/ (htmx, css)
+  internal/web/             handlers, templates/, static/ (htmx, css, fonts)
   testdata/feeds/           real and broken feed fixtures
 ```
 
@@ -340,7 +340,18 @@ Adding a feed or changing its URL accepts a web page as well as a feed. When the
 
 Server-rendered HTML with `html/template`, enhanced by htmx; every page also works as a full page load. The layout has three areas: a sidebar of folders and feeds with unread counts, an entry list, and the open entry. On narrow screens they stack as separate pages.
 
-Styling is one small hand-written CSS file with system fonts and light and dark themes via `prefers-color-scheme`. Templates, CSS and htmx are embedded with `embed`.
+Styling is one small hand-written CSS file. Templates, CSS, fonts and htmx are embedded with `embed`.
+
+#### Themes
+
+A theme sets the colors and four fonts as CSS custom properties: `--font-text`, `--font-title` (the brand and entry titles), `--font-heading` (the list heading, menu sections, page headings and headings in articles) and `--font-code`. Each theme has a light and a dark version, chosen by `prefers-color-scheme`. There are two built-in themes:
+
+- **Default:** system fonts; white, or dark grey in dark mode.
+- **Sepia:** Lora for text, titles and headings, Fira Code for code; warm paper colors, or dark brown in dark mode, with a sage green accent. Both fonts are embedded woff2 files; the browser loads them only when the theme is used.
+
+The current menu item and the row of the open entry take the theme's `--fg-current` color: the text color in Default, the accent in Sepia.
+
+The Appearance page lists the themes, each previewed in its own colors and fonts. The choice is kept per browser in `localStorage`, like the column widths: it is a display preference, not reading data, so it stays out of the data directory. `ui.js` loads in `<head>` and sets `data-theme` on `<html>` before the page is drawn, so the page never flashes in the wrong theme.
 
 #### Routes
 
@@ -357,6 +368,7 @@ Styling is one small hand-written CSS file with system fonts and light and dark 
 | POST | `/feeds` | Add feed (`url`, optional `folder`) |
 | POST | `/feeds/{id}` | Rename or move feed, or change its URL |
 | DELETE | `/feeds/{id}` | Remove feed (after confirm) |
+| GET | `/appearance` | Choose a theme; the choice stays in the browser |
 | POST | `/refresh` | Fetch all feeds now |
 | GET | `/opml` | Download subscriptions as OPML |
 | POST | `/opml` | Import OPML upload |
@@ -368,7 +380,7 @@ htmx requests (header `HX-Request`) get a partial (a row, the sidebar, the list)
 - **Bind address** defaults to `127.0.0.1:8080`. Exposing it needs an explicit `--addr`, ideally behind a VPN such as Tailscale.
 - **No auth in the app** in the MVP; access control is the network.
 - **Cross-site request forgery:** every non-GET request must carry the `HX-Request` header and, when present, an `Origin` matching the host. Browsers cannot add custom headers to cross-origin requests without CORS, which leanfeed never enables. Forms without htmx are not used for mutations.
-- **Feed content** is shown only after sanitizing (N6), plus a `Content-Security-Policy` that allows scripts only from the app itself.
+- **Feed content** is shown only after sanitizing (N6), plus a `Content-Security-Policy` that allows scripts, styles and fonts only from the app itself.
 - **Other headers:** `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`.
 - **Input:** feed URLs must be `http` or `https`; OPML uploads are capped at 5 MB.
 

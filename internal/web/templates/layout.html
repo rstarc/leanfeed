@@ -15,7 +15,7 @@
 {{template "sidebar" .Sidebar}}
 <div class="splitter" data-resize="sidebar" role="separator" aria-orientation="vertical" aria-label="Resize the menu" title="Drag to resize, double-click to reset" tabindex="0"></div>
 <main id="main" class="main">
-{{if .Manage}}{{template "manage" .Manage}}{{else}}
+{{if .Manage}}{{template "manage" .Manage}}{{else if .Appearance}}{{template "appearance" .Appearance}}{{else}}
 {{with .List}}{{template "list" .}}{{end}}
 {{template "entry-pane" .Entry}}
 {{end}}

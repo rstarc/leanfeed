@@ -308,3 +308,33 @@ func TestEntryHasFullScreenButton(t *testing.T) {
 		t.Errorf("full screen button attributes = %v", b.Attr)
 	}
 }
+
+func TestFlowAppearancePageListsThemes(t *testing.T) {
+	f := newFixture(t)
+	p := f.open("/entries")
+	p.click(`#sidebar a[href="/appearance"]`)
+	wantText(t, p, "#appearance h1", "Appearance")
+	wantHighlighted(t, p, "/appearance")
+
+	var values []string
+	for _, n := range p.all(`#appearance input[type="radio"][name="theme"]`) {
+		values = append(values, attrOr(n, "value", ""))
+	}
+	if !slices.Equal(values, []string{"default", "sepia"}) {
+		t.Errorf("theme choices = %q, want default and sepia", values)
+	}
+	if got := p.texts("#appearance .theme-name"); !slices.Equal(got, []string{"Default", "Sepia"}) {
+		t.Errorf("theme names = %q", got)
+	}
+	// Without JavaScript nothing is stored, so the default theme applies.
+	if !p.exists(`#appearance input[value="default"][checked]`) {
+		t.Error("the default theme is not checked")
+	}
+	// The choice is kept in the browser; nothing is sent to the server.
+	if p.exists("#appearance form") || p.exists("#appearance [hx-post]") {
+		t.Error("the appearance page sends the choice to the server")
+	}
+
+	p.click("#view-unread")
+	wantText(t, p, "#list h1", "Unread")
+}

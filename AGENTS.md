@@ -63,7 +63,8 @@ instruction.
   ignoring one is right, say so with `_ =` and, if the reason is not obvious, a comment.
 - Comments explain why, not what.
 - Do not add third-party dependencies without asking. The current ones are gofeed,
-  bluemonday, `golang.org/x/net`, cobra and htmx, plus chromedp for the browser tests.
+  bluemonday, `golang.org/x/net`, cobra, htmx and the Lora and Fira Code fonts, plus
+  chromedp for the browser tests.
 - Update `README.md` and `design.md` in the same commit when behavior, commands,
   flags, routes or the data format change. Write documentation in plain language:
   short sentences, one idea per sentence.
@@ -101,9 +102,12 @@ instruction.
   the entry actions and the sidebar counts.
 - Requests that change data are `POST` or `DELETE` sent by htmx. The CSRF check relies
   on the `HX-Request` header, so do not add plain HTML forms that change data.
-- The Content Security Policy allows scripts and styles only from leanfeed itself: no
-  inline `<script>`, `style` attributes or event handler attributes. Browser
-  behavior goes in `static/ui.js`.
+- The Content Security Policy allows scripts, styles and fonts only from leanfeed
+  itself: no inline `<script>`, `style` attributes or event handler attributes.
+  Browser behavior goes in `static/ui.js`.
+- A theme is a block of custom properties under `[data-theme="…"]` in `style.css`,
+  with a dark version under `prefers-color-scheme`, plus an entry in `themes` in
+  `internal/web/appearance.go`. Rules use the properties, never fixed colors or fonts.
 - Every parameter is a flag with a matching `LEANFEED_*` environment variable, listed
   in `envVars` in `cmd/leanfeed/main.go` and in the README tables.
 - Logging uses `log/slog`.
