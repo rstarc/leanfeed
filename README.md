@@ -99,18 +99,22 @@ Restart=on-failure
 WantedBy=multi-user.target
 ```
 
-### Docker
+### Podman
 
 ```sh
-docker build --build-arg VERSION=$(git describe --tags --always) -t leanfeed .
-docker run -d --name leanfeed -p 127.0.0.1:8080:8080 -v leanfeed-data:/data leanfeed
+podman build --format docker --build-arg VERSION=$(git describe --tags --always) -t leanfeed .
+podman run -d --name leanfeed -p 127.0.0.1:8080:8080 -v leanfeed-data:/data leanfeed
 ```
 
-Inside the container leanfeed listens on all interfaces. The `-p 127.0.0.1:8080:8080` option publishes the port on localhost only. The image runs as a non-root user (UID 65532). If you mount a host directory instead of a named volume, that user must be able to write to it.
+The `--format docker` option keeps the image's health check. Podman's default image format (OCI) has no health checks and drops it. `podman ps` shows whether the container is healthy, and `podman healthcheck run leanfeed` runs the check at once.
+
+The same commands work with Docker; leave out `--format docker`.
+
+Inside the container leanfeed listens on all interfaces. The `-p 127.0.0.1:8080:8080` option publishes the port on localhost only. The image runs as a non-root user (UID 65532). If you mount a host directory instead of a named volume, that user must be able to write to it. With rootless Podman, add `:U` to the mount, for example `-v ./data:/data:U`, and Podman changes the directory's owner to match.
 
 ### Health check
 
-`GET /healthz` answers `200` with the text `ok` when leanfeed can read its data, and `503` otherwise. Point an uptime monitor or a container orchestrator at it. Where no HTTP client is available, run `leanfeed healthcheck`. The Docker image uses it as its `HEALTHCHECK`, so `docker ps` shows whether leanfeed is healthy.
+`GET /healthz` answers `200` with the text `ok` when leanfeed can read its data, and `503` otherwise. Point an uptime monitor or a container orchestrator at it. Where no HTTP client is available, run `leanfeed healthcheck`. The container image uses it as its `HEALTHCHECK`.
 
 ## Security
 

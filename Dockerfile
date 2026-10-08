@@ -1,5 +1,7 @@
 # Build a static binary, then copy it into a minimal image that runs as a
-# non-root user. Build with: docker build --build-arg VERSION=$(git describe --tags --always) -t leanfeed .
+# non-root user. Build with:
+#   podman build --format docker --build-arg VERSION=$(git describe --tags --always) -t leanfeed .
+# --format docker keeps the HEALTHCHECK, which the OCI image format drops.
 FROM golang:1.26-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./

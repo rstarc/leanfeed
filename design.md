@@ -383,7 +383,7 @@ Configuration is command-line flags with matching environment variables; there i
 | `--interval` | `LEANFEED_INTERVAL` | `30m` |
 | `--workers` | `LEANFEED_WORKERS` | `4` |
 
-Commands: `leanfeed serve` runs the server and fetcher; `leanfeed import <file.opml>` and `leanfeed export` work offline on the data directory; `leanfeed healthcheck` asks a running server for `/healthz`, for health checks in images without an HTTP client. Deployment is the single binary under systemd, or a small Docker image with the data directory as a volume. Logs go to stdout via `log/slog`. Backup and restore are out of scope: use external tools such as filesystem snapshots or restic on the data directory. leanfeed only guarantees that files on disk are always consistent (N5).
+Commands: `leanfeed serve` runs the server and fetcher; `leanfeed import <file.opml>` and `leanfeed export` work offline on the data directory; `leanfeed healthcheck` asks a running server for `/healthz`, for health checks in images without an HTTP client. Deployment is the single binary under systemd, or a small container image (built with Podman) with the data directory as a volume. Logs go to stdout via `log/slog`. Backup and restore are out of scope: use external tools such as filesystem snapshots or restic on the data directory. leanfeed only guarantees that files on disk are always consistent (N5).
 
 **Versioning:** the git tag is the version, injected at build time with `go build -ldflags "-X main.version=$(git describe --tags --always)"`. `leanfeed --version` prints it and the fetcher's `User-Agent` includes it.
 
