@@ -139,6 +139,8 @@ go test -run XXX -bench . ./internal/store/filestore ./internal/web
 
 The fetcher and browser tests start local HTTP servers with `httptest`, so they need permission to listen on a local port.
 
+GitHub Actions runs the same checks on every push to `main` and on pull requests: `go vet`, the build, all tests with the race detector and the browser tests, golangci-lint and govulncheck (`.github/workflows/ci.yml`).
+
 ### UI tests
 
 The UI has two kinds of tests in `internal/web`:

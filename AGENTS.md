@@ -25,7 +25,9 @@ When goals conflict, they rank in this order (from `design.md`):
 - `make clean` — removes `bin/`, including the installed lint and vulnerability tools
 
 Use the Makefile targets; do not call `go build` or `go test` directly. Run a single
-test while working on it, but finish with `make test`.
+test while working on it, but finish with `make test` and `make lint`. This applies to
+local development only: CI calls the Go toolchain directly, see
+`.github/workflows/ci.yml`. The tool versions there and in the Makefile must match.
 
 Tools come from the Nix flake. Run `nix develop -c make test-ui` (or `make test`) so the
 browser tests find Chrome through `LEANFEED_CHROME`; without it they are skipped, which
