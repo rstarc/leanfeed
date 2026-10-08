@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -113,7 +115,7 @@ func TestNoCommandPrintsHelp(t *testing.T) {
 	if r.code != 0 || r.served != nil {
 		t.Errorf("exit %d, served %v", r.code, r.served)
 	}
-	for _, want := range []string{"serve", "import", "export"} {
+	for _, want := range []string{"serve", "import", "export", "healthcheck"} {
 		if !strings.Contains(r.stdout, want) {
 			t.Errorf("help does not mention %q:\n%s", want, r.stdout)
 		}
@@ -189,5 +191,54 @@ func TestImportAndExportCommands(t *testing.T) {
 func TestImportMissingFile(t *testing.T) {
 	if r := exec([]string{"--data", t.TempDir(), "import", "/does/not/exist.opml"}, nil); r.code != 1 {
 		t.Errorf("exit %d, want 1", r.code)
+	}
+}
+
+func TestHealthcheckURL(t *testing.T) {
+	tests := []struct{ addr, want string }{
+		{"127.0.0.1:8080", "http://127.0.0.1:8080/healthz"},
+		{"0.0.0.0:8080", "http://127.0.0.1:8080/healthz"},
+		{":8080", "http://127.0.0.1:8080/healthz"},
+		{"[::]:8080", "http://[::1]:8080/healthz"},
+		{"leanfeed.lan:9000", "http://leanfeed.lan:9000/healthz"},
+	}
+	for _, tt := range tests {
+		got, err := healthcheckURL(tt.addr)
+		if err != nil || got != tt.want {
+			t.Errorf("healthcheckURL(%q) = %q, %v, want %q", tt.addr, got, err, tt.want)
+		}
+	}
+	if _, err := healthcheckURL("no-port"); err == nil {
+		t.Error("healthcheckURL accepted an address without a port")
+	}
+}
+
+func TestHealthcheckCommand(t *testing.T) {
+	status := http.StatusOK
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/healthz" {
+			http.NotFound(w, r)
+			return
+		}
+		w.WriteHeader(status)
+	}))
+	addr := strings.TrimPrefix(srv.URL, "http://")
+
+	if r := exec([]string{"healthcheck", "--addr", addr}, nil); r.code != 0 {
+		t.Errorf("healthy server: exit %d: %s", r.code, r.stderr)
+	}
+	// The address can also come from the environment, as in the Docker image.
+	if r := exec([]string{"healthcheck"}, map[string]string{"LEANFEED_ADDR": addr}); r.code != 0 {
+		t.Errorf("address from environment: exit %d: %s", r.code, r.stderr)
+	}
+
+	status = http.StatusServiceUnavailable
+	if r := exec([]string{"healthcheck", "--addr", addr}, nil); r.code != 1 || !strings.Contains(r.stderr, "503") {
+		t.Errorf("unhealthy server: exit %d, stderr %q", r.code, r.stderr)
+	}
+
+	srv.Close()
+	if r := exec([]string{"healthcheck", "--addr", addr}, nil); r.code != 1 || r.stderr == "" {
+		t.Errorf("no server: exit %d, stderr %q", r.code, r.stderr)
 	}
 }

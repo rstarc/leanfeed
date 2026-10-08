@@ -33,6 +33,7 @@ Other `make` targets:
 | `leanfeed serve` | Runs the web server and fetches feeds on a schedule. |
 | `leanfeed import FILE` | Imports subscriptions from an OPML file. |
 | `leanfeed export` | Writes subscriptions as OPML to standard output. |
+| `leanfeed healthcheck` | Asks the server at `--addr` for `/healthz`. Exits with `0` if it answers `200` within 5 seconds, and with `1` otherwise. |
 | `leanfeed --version` | Prints the version. |
 | `leanfeed --help` | Lists the commands and flags. `leanfeed COMMAND --help` shows help for one command. |
 
@@ -49,7 +50,7 @@ Each parameter can be set with a flag or an environment variable. A flag wins ov
 | `--interval DURATION` | `LEANFEED_INTERVAL` | `30m` | Time between two fetches of the same feed, written like `45m` or `2h`. The minimum is `1m`. |
 | `--workers N` | `LEANFEED_WORKERS` | `4` | Number of feeds fetched at the same time. The minimum is `1`. |
 
-`serve` uses all four parameters. `import` and `export` use only `--data`.
+`serve` uses all four parameters. `import` and `export` use only `--data`. `healthcheck` uses only `--addr`; a host of `0.0.0.0`, `::` or none means this computer.
 
 After a failed fetch, leanfeed doubles the wait for each further failure, up to 24 hours. It honours `Retry-After` on HTTP 429 and 503 responses.
 
@@ -109,7 +110,7 @@ Inside the container leanfeed listens on all interfaces. The `-p 127.0.0.1:8080:
 
 ### Health check
 
-`GET /healthz` answers `200` with the text `ok` when leanfeed can read its data, and `503` otherwise. Point an uptime monitor or a container orchestrator at it. The Docker image has no HTTP client, so a Docker `HEALTHCHECK` must run the check from outside the container.
+`GET /healthz` answers `200` with the text `ok` when leanfeed can read its data, and `503` otherwise. Point an uptime monitor or a container orchestrator at it. Where no HTTP client is available, run `leanfeed healthcheck`. The Docker image uses it as its `HEALTHCHECK`, so `docker ps` shows whether leanfeed is healthy.
 
 ## Security
 

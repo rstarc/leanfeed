@@ -5,6 +5,7 @@
 //	leanfeed serve           run the web server and the fetcher
 //	leanfeed import FILE     import subscriptions from OPML (server stopped)
 //	leanfeed export          write subscriptions as OPML to stdout
+//	leanfeed healthcheck     check that the server at --addr is healthy
 //	leanfeed --version
 //
 // Run leanfeed --help for the flags and their environment variables.
@@ -16,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -141,6 +143,16 @@ func execute(args []string, getenv func(string) string, stdout, stderr io.Writer
 				return exportOPML(cfg, stdout, slog.New(slog.NewTextHandler(stderr, nil)))
 			},
 		},
+		&cobra.Command{
+			Use:   "healthcheck",
+			Short: "Check that the server at --addr is healthy",
+			Long: "Check that the server at --addr is healthy. It exits with 0 if GET /healthz answers 200 within 5 s, " +
+				"and with 1 otherwise. Use it for health checks in images without an HTTP client.",
+			Args: usageArgs(cobra.NoArgs),
+			RunE: func(*cobra.Command, []string) error {
+				return healthcheck(cfg.Addr)
+			},
+		},
 	)
 
 	err := root.Execute()
@@ -187,6 +199,42 @@ func exportOPML(cfg config, stdout io.Writer, log *slog.Logger) error {
 	}
 	defer st.Close()
 	return st.ExportOPML(context.Background(), stdout)
+}
+
+// healthcheck asks the server at addr for /healthz and fails unless it
+// answers 200 within 5 s.
+func healthcheck(addr string) error {
+	u, err := healthcheckURL(addr)
+	if err != nil {
+		return err
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(u)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%s answered %s", u, resp.Status)
+	}
+	return nil
+}
+
+// healthcheckURL returns the /healthz address of a server listening on
+// addr. An unspecified host, as in 0.0.0.0:8080 or :8080, means this
+// machine.
+func healthcheckURL(addr string) (string, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", err
+	}
+	switch host {
+	case "", "0.0.0.0":
+		host = "127.0.0.1"
+	case "::":
+		host = "::1"
+	}
+	return "http://" + net.JoinHostPort(host, port) + "/healthz", nil
 }
 
 // serve runs the web server and the fetcher until SIGINT or SIGTERM. On

@@ -19,5 +19,7 @@ ENV LEANFEED_DATA=/data \
     LEANFEED_ADDR=0.0.0.0:8080
 VOLUME /data
 EXPOSE 8080
+# The image has no HTTP client, so leanfeed checks its own /healthz.
+HEALTHCHECK CMD ["/leanfeed", "healthcheck"]
 ENTRYPOINT ["/leanfeed"]
 CMD ["serve"]
