@@ -48,8 +48,10 @@ func Write(tb testing.TB, dir string, feeds, perFeed int) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	defer f.Close()
 	if err := opml.Write(f, subs); err != nil {
+		tb.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
 		tb.Fatal(err)
 	}
 }

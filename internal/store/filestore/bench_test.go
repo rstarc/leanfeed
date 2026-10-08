@@ -17,14 +17,17 @@ func TestIndexBuild10k(t *testing.T) {
 	dir := t.TempDir()
 	corpus.Write(t, dir, 50, 200)
 	s := open(t, dir) // warm the OS cache
-	s.Close()
+	mustClose(t, s)
 
 	start := time.Now()
 	s = open(t, dir)
 	elapsed := time.Since(start)
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 
-	page, _ := s.ListEntries(ctx, store.Query{View: store.ViewAll, Limit: 1})
+	page, err := s.ListEntries(ctx, store.Query{View: store.ViewAll, Limit: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if page.Total != 10_000 {
 		t.Fatalf("loaded %d entries, want 10000", page.Total)
 	}
@@ -42,7 +45,7 @@ func BenchmarkOpen10k(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		s.Close()
+		mustClose(b, s)
 	}
 }
 
@@ -53,8 +56,10 @@ func BenchmarkListEntries10k(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	for b.Loop() {
-		s.ListEntries(ctx, store.Query{View: store.ViewUnread, Limit: 50})
+		if _, err := s.ListEntries(ctx, store.Query{View: store.ViewUnread, Limit: 50}); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

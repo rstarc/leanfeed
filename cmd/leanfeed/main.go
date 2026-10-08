@@ -161,25 +161,26 @@ func execute(args []string, getenv func(string) string, stdout, stderr io.Writer
 	case err == nil:
 		return 0
 	case errors.As(err, &uerr):
-		fmt.Fprintf(stderr, "leanfeed: %v\nRun 'leanfeed --help' for usage.\n", err)
+		_, _ = fmt.Fprintf(stderr, "leanfeed: %v\nRun 'leanfeed --help' for usage.\n", err)
 		return 2
 	default:
-		fmt.Fprintf(stderr, "leanfeed: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "leanfeed: %v\n", err)
 		return 1
 	}
 }
 
-func importOPML(cfg config, file string, stdout io.Writer, log *slog.Logger) error {
+func importOPML(cfg config, file string, stdout io.Writer, log *slog.Logger) (err error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	st, err := filestore.Open(cfg.Data, log)
 	if err != nil {
 		return err
 	}
-	defer st.Close()
+	// Close waits for pending writes, so its error matters.
+	defer func() { err = errors.Join(err, st.Close()) }()
 	stats, err := st.ImportOPML(context.Background(), f)
 	if err != nil {
 		return err
@@ -188,16 +189,16 @@ func importOPML(cfg config, file string, stdout io.Writer, log *slog.Logger) err
 	if stats.Added == 1 {
 		noun = "feed"
 	}
-	fmt.Fprintf(stdout, "Imported %d %s, skipped %d.\n", stats.Added, noun, stats.Skipped)
-	return nil
+	_, err = fmt.Fprintf(stdout, "Imported %d %s, skipped %d.\n", stats.Added, noun, stats.Skipped)
+	return err
 }
 
-func exportOPML(cfg config, stdout io.Writer, log *slog.Logger) error {
+func exportOPML(cfg config, stdout io.Writer, log *slog.Logger) (err error) {
 	st, err := filestore.Open(cfg.Data, log)
 	if err != nil {
 		return err
 	}
-	defer st.Close()
+	defer func() { err = errors.Join(err, st.Close()) }()
 	return st.ExportOPML(context.Background(), stdout)
 }
 
@@ -213,7 +214,7 @@ func healthcheck(addr string) error {
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close() // the status is all the check needs
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%s answered %s", u, resp.Status)
 	}
@@ -255,8 +256,7 @@ func serve(cfg config, log *slog.Logger) error {
 	}, log)
 	handler, err := web.New(st, f, log)
 	if err != nil {
-		st.Close()
-		return err
+		return errors.Join(err, st.Close())
 	}
 	srv := &http.Server{Addr: cfg.Addr, Handler: handler, ReadHeaderTimeout: 10 * time.Second}
 

@@ -22,7 +22,10 @@ Other `make` targets:
 | `make build` | Builds `bin/leanfeed`. The version is taken from `git describe`. |
 | `make test` | Runs `go vet`, then all tests with the race detector, including the slow checks with 10,000 entries and 300 feeds. |
 | `make test-short` | Runs the tests without the slow checks. |
-| `make clean` | Removes `bin/`. |
+| `make lint` | Runs golangci-lint, which also checks the formatting (gofumpt and goimports). |
+| `make fmt` | Applies the formatting that `make lint` checks. |
+| `make vuln` | Checks the dependencies for known vulnerabilities with govulncheck. |
+| `make clean` | Removes `bin/`, including the lint and vulnerability tools that `make lint` and `make vuln` install there. |
 
 ## Configuration
 
@@ -129,6 +132,8 @@ Inside the container leanfeed listens on all interfaces. The `-p 127.0.0.1:8080:
 make test               # go vet, then all tests with the race detector, including the slow checks
 make test-short         # skips the slow checks and the browser tests
 make test-ui            # only the UI flow tests and the browser tests
+make lint               # golangci-lint, including formatting
+make vuln               # govulncheck
 go test -run XXX -bench . ./internal/store/filestore ./internal/web
 ```
 

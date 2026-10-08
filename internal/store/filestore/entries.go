@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
-
 	"time"
 
 	"leanfeed/internal/ids"
@@ -109,7 +108,7 @@ func (s *Store) createEntry(e store.Entry, ie store.IncomingEntry) error {
 	}
 	for _, f := range files {
 		if err := writeFileSync(filepath.Join(tmp, f.name), f.data); err != nil {
-			os.RemoveAll(tmp)
+			_ = os.RemoveAll(tmp) // startup removes it if this fails
 			return err
 		}
 	}

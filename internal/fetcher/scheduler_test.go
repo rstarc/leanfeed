@@ -93,7 +93,7 @@ func TestSubscribeStoresPermanentRedirectTarget(t *testing.T) {
 
 func TestSubscribeUntitledFeedUsesHost(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `<rss version="2.0"><channel><title>  </title><item><title>x</title><guid>x</guid></item></channel></rss>`)
+		_, _ = fmt.Fprint(w, `<rss version="2.0"><channel><title>  </title><item><title>x</title><guid>x</guid></item></channel></rss>`)
 	}))
 	defer srv.Close()
 	s := newStore(t)
@@ -236,7 +236,9 @@ func TestRefreshAllFetchesFeedsThatAreNotDue(t *testing.T) {
 	s := newStore(t)
 	for _, p := range []string{"/a", "/b"} {
 		feed := addFeed(t, s, srv.URL+p)
-		s.RecordFetch(ctx, feed.ID, store.FetchResult{Status: store.StatusOK, NextFetchAt: now.Add(time.Hour)})
+		if err := s.RecordFetch(ctx, feed.ID, store.FetchResult{Status: store.StatusOK, NextFetchAt: now.Add(time.Hour)}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	f := newFetcher(t, s)
 	runFetcher(t, f)

@@ -19,7 +19,10 @@ When goals conflict, they rank in this order (from `design.md`):
 - `make test` — runs `go vet`, then all tests with the race detector, including the slow checks with 10,000 entries and 300 feeds; must pass before a change is done
 - `make test-short` — runs the tests without the slow checks and the browser tests; use it while iterating
 - `make test-ui` — runs only the UI flow tests and the headless-browser tests
-- `make clean` — removes `bin/`
+- `make lint` — runs golangci-lint, which also reports formatting (gofumpt, goimports); must pass before a change is done
+- `make fmt` — applies the formatting `make lint` checks for
+- `make vuln` — checks the dependencies for known vulnerabilities with govulncheck
+- `make clean` — removes `bin/`, including the installed lint and vulnerability tools
 
 Use the Makefile targets; do not call `go build` or `go test` directly. Run a single
 test while working on it, but finish with `make test`.
@@ -54,7 +57,8 @@ instruction.
 - Use established patterns and best practices. Reach for the standard library first,
   then the patterns this codebase already uses (see Conventions), before inventing
   new ones.
-- Return errors and wrap them with `%w`; do not panic.
+- Return errors and wrap them with `%w`; do not panic. Check every error. Where
+  ignoring one is right, say so with `_ =` and, if the reason is not obvious, a comment.
 - Comments explain why, not what.
 - Do not add third-party dependencies without asking. The current ones are gofeed,
   bluemonday, `golang.org/x/net`, cobra and htmx, plus chromedp for the browser tests.

@@ -36,7 +36,7 @@ func fixture(t testing.TB, name string) []byte {
 // serveFixture returns a handler that serves a fixture file.
 func serveFixture(t testing.TB, name string) http.HandlerFunc {
 	data := fixture(t, name)
-	return func(w http.ResponseWriter, r *http.Request) { w.Write(data) }
+	return func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(data) }
 }
 
 func newStore(t testing.TB) store.Store {
@@ -45,7 +45,11 @@ func newStore(t testing.TB) store.Store {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() {
+		if err := s.Close(); err != nil {
+			t.Errorf("closing the store: %v", err)
+		}
+	})
 	return s
 }
 
@@ -140,12 +144,14 @@ func TestFetchSendsUserAgent(t *testing.T) {
 	var ua string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ua = r.Header.Get("User-Agent")
-		w.Write(fixture(t, "rss2.xml"))
+		_, _ = w.Write(fixture(t, "rss2.xml"))
 	}))
 	defer srv.Close()
 	s := newStore(t)
 	feed := addFeed(t, s, srv.URL)
-	newFetcher(t, s).Fetch(ctx, feed.ID)
+	if err := newFetcher(t, s).Fetch(ctx, feed.ID); err != nil {
+		t.Fatal(err)
+	}
 	if ua != "leanfeed/test" {
 		t.Errorf("User-Agent = %q", ua)
 	}
@@ -163,7 +169,7 @@ func TestFetchConditionalGet(t *testing.T) {
 		}
 		w.Header().Set("ETag", `"v1"`)
 		w.Header().Set("Last-Modified", "Tue, 06 Oct 2026 08:00:00 GMT")
-		w.Write(fixture(t, "rss2.xml"))
+		_, _ = w.Write(fixture(t, "rss2.xml"))
 	}))
 	defer srv.Close()
 	s := newStore(t)
@@ -210,7 +216,7 @@ func TestFetchErrorBackoff(t *testing.T) {
 			return
 		}
 		w.Header().Set("ETag", `"ok"`)
-		w.Write(fixture(t, "rss2.xml"))
+		_, _ = w.Write(fixture(t, "rss2.xml"))
 	}))
 	defer srv.Close()
 	s := newStore(t)
@@ -254,7 +260,9 @@ func TestFetchErrorBackoff(t *testing.T) {
 
 	// A failure keeps the validators from the last success.
 	status = http.StatusBadGateway
-	f.Fetch(ctx, feed.ID)
+	if err := f.Fetch(ctx, feed.ID); err == nil {
+		t.Fatal("fetching a failing feed succeeded")
+	}
 	if got := getFeed(t, s, feed.ID); got.ETag != `"ok"` {
 		t.Errorf("ETag after failure = %q, want kept", got.ETag)
 	}
@@ -282,7 +290,9 @@ func TestFetchRetryAfter(t *testing.T) {
 			defer srv.Close()
 			s := newStore(t)
 			feed := addFeed(t, s, srv.URL)
-			newFetcher(t, s).Fetch(ctx, feed.ID)
+			if err := newFetcher(t, s).Fetch(ctx, feed.ID); err == nil {
+				t.Fatal("fetching a failing feed succeeded")
+			}
 			if got := getFeed(t, s, feed.ID); !got.NextFetchAt.Equal(now.Add(tt.wait)) {
 				t.Errorf("next fetch in %v, want %v", got.NextFetchAt.Sub(now), tt.wait)
 			}
@@ -529,7 +539,7 @@ func (c *countingServer) handler(t testing.TB) http.HandlerFunc {
 		c.mu.Lock()
 		c.hits[r.URL.Path]++
 		c.mu.Unlock()
-		w.Write(data)
+		_, _ = w.Write(data)
 	}
 }
 

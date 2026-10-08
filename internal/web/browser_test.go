@@ -87,7 +87,11 @@ func newBrowser(t *testing.T, width, height int) *browser {
 	t.Cleanup(feeds.Close)
 	st, err := filestore.Open(t.TempDir(), quietLog)
 	must(t, err)
-	t.Cleanup(func() { st.Close() })
+	t.Cleanup(func() {
+		if err := st.Close(); err != nil {
+			t.Errorf("closing the store: %v", err)
+		}
+	})
 	f := fetcher.New(st, fetcher.Config{UserAgent: "leanfeed/test"}, quietLog)
 	srv, err := New(st, f, quietLog)
 	must(t, err)
@@ -144,7 +148,8 @@ func newBrowser(t *testing.T, width, height int) *browser {
 			b.mu.Lock()
 			b.dialogs = append(b.dialogs, ev.Message)
 			b.mu.Unlock()
-			chromedp.Call(ctx, cdppage.HandleJavaScriptDialog, cdppage.HandleJavaScriptDialogParams{Accept: b.accept.Load()})
+			// A failure leaves the dialog open, and the test waiting on it fails.
+			_, _ = chromedp.Call(ctx, cdppage.HandleJavaScriptDialog, cdppage.HandleJavaScriptDialogParams{Accept: b.accept.Load()})
 		}
 	}()
 	t.Cleanup(b.checkNoProblems)

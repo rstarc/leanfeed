@@ -76,7 +76,11 @@ func newFixture(t *testing.T) *fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() {
+		if err := s.Close(); err != nil {
+			t.Errorf("closing the store: %v", err)
+		}
+	})
 	f := &fixture{t: t, store: s, fetcher: &fakeFetcher{store: s}, ids: map[string]string{}}
 	f.srv, err = New(s, f.fetcher, quietLog)
 	if err != nil {

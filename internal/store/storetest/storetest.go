@@ -55,7 +55,11 @@ func Run(t *testing.T, newStore NewStore) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := newStore(t)
-			t.Cleanup(func() { s.Close() })
+			t.Cleanup(func() {
+				if err := s.Close(); err != nil {
+					t.Errorf("Close: %v", err)
+				}
+			})
 			tt.fn(t, s)
 		})
 	}

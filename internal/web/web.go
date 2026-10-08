@@ -87,7 +87,7 @@ func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	io.WriteString(w, "ok\n")
+	_, _ = io.WriteString(w, "ok\n")
 }
 
 // contentSecurityPolicy allows scripts and styles only from leanfeed
@@ -158,7 +158,7 @@ func (s *Server) renderStatus(w http.ResponseWriter, status int, parts ...part) 
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
-	w.Write(buf.Bytes())
+	_, _ = w.Write(buf.Bytes()) // the client has gone; nothing left to tell it
 }
 
 // fail maps store errors to HTTP errors.

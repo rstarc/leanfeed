@@ -87,16 +87,30 @@ func readFile(t *testing.T, path string) string {
 	return string(data)
 }
 
+// mustClose closes s and fails the test if pending writes failed.
+func mustClose(tb testing.TB, s *Store) {
+	tb.Helper()
+	if err := s.Close(); err != nil {
+		tb.Fatal(err)
+	}
+}
+
 // tempNames returns every path under dir whose name starts with ".tmp-".
 func tempNames(t *testing.T, dir string) []string {
 	t.Helper()
 	var found []string
-	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 		if strings.HasPrefix(d.Name(), ".tmp-") {
 			found = append(found, path)
 		}
 		return nil
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	return found
 }
 
@@ -165,7 +179,7 @@ func TestPersistsAcrossReopen(t *testing.T) {
 	}
 	wantFeed, _ := s.GetFeed(ctx, blogID)
 	wantEntries, _ := s.ListEntries(ctx, store.Query{View: store.ViewAll})
-	s.Close()
+	mustClose(t, s)
 
 	s = open(t, dir)
 	gotFeed, err := s.GetFeed(ctx, blogID)
@@ -209,7 +223,7 @@ func TestStartupRemovesTempFiles(t *testing.T) {
 	dir := t.TempDir()
 	s := open(t, dir)
 	addBlog(t, s)
-	s.Close()
+	mustClose(t, s)
 
 	feedDir := filepath.Join(dir, "feeds", blogID)
 	halfEntry := filepath.Join(feedDir, "entries", ".tmp-0123456789abcdef")
@@ -220,7 +234,9 @@ func TestStartupRemovesTempFiles(t *testing.T) {
 		filepath.Join(halfEntry, "meta.json"),
 	}
 	for _, p := range leftovers {
-		os.MkdirAll(filepath.Dir(p), 0o755)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
 		if err := os.WriteFile(p, []byte(`{"id":"0123456789abcdef","title":"half"}`), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -240,12 +256,18 @@ func TestStartupIgnoresOrphanDirectories(t *testing.T) {
 	dir := t.TempDir()
 	s := open(t, dir)
 	addBlog(t, s)
-	s.Close()
+	mustClose(t, s)
 
 	orphan := filepath.Join(dir, "feeds", "orphan-12345678", "entries", "0123456789abcdef")
-	os.MkdirAll(orphan, 0o755)
-	os.WriteFile(filepath.Join(orphan, "meta.json"), []byte(`{"id":"0123456789abcdef","title":"orphan"}`), 0o644)
-	os.WriteFile(filepath.Join(dir, "feeds", ".DS_Store"), []byte("junk"), 0o644)
+	if err := os.MkdirAll(orphan, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(orphan, "meta.json"), []byte(`{"id":"0123456789abcdef","title":"orphan"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "feeds", ".DS_Store"), []byte("junk"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	s = open(t, dir)
 	feeds, _ := s.ListFeeds(ctx)
@@ -264,8 +286,10 @@ func TestStartupSkipsCorruptMeta(t *testing.T) {
 	if _, err := s.UpsertEntries(ctx, blogID, []store.IncomingEntry{post("guid-2", "Second")}); err != nil {
 		t.Fatal(err)
 	}
-	s.Close()
-	os.WriteFile(filepath.Join(dir, "feeds", blogID, "entries", entryID, "meta.json"), []byte("{not json"), 0o644)
+	mustClose(t, s)
+	if err := os.WriteFile(filepath.Join(dir, "feeds", blogID, "entries", entryID, "meta.json"), []byte("{not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	s = open(t, dir)
 	page, _ := s.ListEntries(ctx, store.Query{View: store.ViewAll})
@@ -283,7 +307,9 @@ func TestStartupAcceptsHandEditedOPML(t *testing.T) {
     <outline type="rss" text="Sneaky" xmlUrl="https://sneaky.example/feed" leanfeedId="../../etc"/>
   </outline>
 </body></opml>`
-	os.WriteFile(filepath.Join(dir, "subscriptions.opml"), []byte(doc), 0o644)
+	if err := os.WriteFile(filepath.Join(dir, "subscriptions.opml"), []byte(doc), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	s := open(t, dir)
 	f, err := s.GetFeed(ctx, "hand-edited-a5a3cec9")

@@ -19,7 +19,11 @@ func largeServer(tb testing.TB) *Server {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	tb.Cleanup(func() { s.Close() })
+	tb.Cleanup(func() {
+		if err := s.Close(); err != nil {
+			tb.Errorf("closing the store: %v", err)
+		}
+	})
 	srv, err := New(s, &fakeFetcher{store: s}, quietLog)
 	if err != nil {
 		tb.Fatal(err)

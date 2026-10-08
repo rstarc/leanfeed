@@ -2,6 +2,7 @@ package filestore
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,12 +16,14 @@ const tmpPrefix = ".tmp-"
 // directory, syncs it, then renames it over path.
 func writeFileAtomic(path string, data []byte) error {
 	tmp := filepath.Join(filepath.Dir(path), tmpPrefix+filepath.Base(path))
+	// A failed cleanup leaves a .tmp- file, which startup removes, so only
+	// the write error is returned.
 	if err := writeFileSync(tmp, data); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return err
 	}
 	if err := os.Rename(tmp, path); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return err
 	}
 	return nil
@@ -33,12 +36,10 @@ func writeFileSync(path string, data []byte) error {
 		return err
 	}
 	if _, err := f.Write(data); err != nil {
-		f.Close()
-		return err
+		return errors.Join(err, f.Close())
 	}
 	if err := f.Sync(); err != nil {
-		f.Close()
-		return err
+		return errors.Join(err, f.Close())
 	}
 	return f.Close()
 }

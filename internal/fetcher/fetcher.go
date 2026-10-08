@@ -200,7 +200,7 @@ func (f *Fetcher) get(ctx context.Context, feedURL, etag, lastModified string) (
 	if err != nil {
 		return res, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	res.url = resp.Request.URL
 	if redirected && permanent {

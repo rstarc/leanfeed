@@ -171,7 +171,7 @@ func (s *Server) handleImportOPML(w http.ResponseWriter, r *http.Request) {
 		s.renderManage(w, r, http.StatusBadRequest, "Choose an OPML file to import.", true)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	data, err := io.ReadAll(io.LimitReader(file, maxOPMLSize+1))
 	if err != nil {
 		s.fail(w, err)

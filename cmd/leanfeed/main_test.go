@@ -49,16 +49,36 @@ func TestServeConfig(t *testing.T) {
 		env  map[string]string
 		want config
 	}{
-		{"defaults", []string{"serve"}, nil,
-			config{Data: "./data", Addr: "127.0.0.1:8080", Interval: 30 * time.Minute, Workers: 4}},
-		{"environment", []string{"serve"}, allEnv,
-			config{Data: "/srv/feeds", Addr: "0.0.0.0:9000", Interval: time.Hour, Workers: 8}},
-		{"flags before command override environment", []string{"--data", "/x", "--interval", "5m", "serve"}, allEnv,
-			config{Data: "/x", Addr: "0.0.0.0:9000", Interval: 5 * time.Minute, Workers: 8}},
-		{"flags after command", []string{"serve", "--addr", ":1234", "--workers=2"}, nil,
-			config{Data: "./data", Addr: ":1234", Interval: 30 * time.Minute, Workers: 2}},
-		{"empty environment variables are ignored", []string{"serve"}, map[string]string{"LEANFEED_DATA": "", "LEANFEED_WORKERS": ""},
-			config{Data: "./data", Addr: "127.0.0.1:8080", Interval: 30 * time.Minute, Workers: 4}},
+		{
+			"defaults",
+			[]string{"serve"},
+			nil,
+			config{Data: "./data", Addr: "127.0.0.1:8080", Interval: 30 * time.Minute, Workers: 4},
+		},
+		{
+			"environment",
+			[]string{"serve"},
+			allEnv,
+			config{Data: "/srv/feeds", Addr: "0.0.0.0:9000", Interval: time.Hour, Workers: 8},
+		},
+		{
+			"flags before command override environment",
+			[]string{"--data", "/x", "--interval", "5m", "serve"},
+			allEnv,
+			config{Data: "/x", Addr: "0.0.0.0:9000", Interval: 5 * time.Minute, Workers: 8},
+		},
+		{
+			"flags after command",
+			[]string{"serve", "--addr", ":1234", "--workers=2"},
+			nil,
+			config{Data: "./data", Addr: ":1234", Interval: 30 * time.Minute, Workers: 2},
+		},
+		{
+			"empty environment variables are ignored",
+			[]string{"serve"},
+			map[string]string{"LEANFEED_DATA": "", "LEANFEED_WORKERS": ""},
+			config{Data: "./data", Addr: "127.0.0.1:8080", Interval: 30 * time.Minute, Workers: 4},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -161,11 +181,14 @@ func TestServeErrorExitCode(t *testing.T) {
 func TestImportAndExportCommands(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "in.opml")
-	os.WriteFile(file, []byte(`<opml version="2.0"><body>
+	err := os.WriteFile(file, []byte(`<opml version="2.0"><body>
 		<outline text="Tech"><outline type="rss" text="Example Blog" xmlUrl="https://example.com/feed.xml"/></outline>
 		<outline type="rss" text="News" xmlUrl="https://news.example/rss"/>
 		<outline type="rss" text="Bad" xmlUrl="ftp://bad.example/"/>
 	</body></opml>`), 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
 	data := filepath.Join(dir, "data")
 
 	r := exec([]string{"--data", data, "import", file}, nil)
